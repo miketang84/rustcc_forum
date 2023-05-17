@@ -46,6 +46,19 @@ async fn main() {
         .route("/v1/tag/create", post(handler))
         .route("/v1/tag/update", post(handler))
         .route("/v1/tag/delete", post(handler))
+        .route("/v1/posttag", get(posttag_get_by_id))
+        .route("/v1/posttag/list", get(posttag_get_by_id))
+        .route("/v1/posttag/list_by_post", get(posttag_get_by_id))
+        .route("/v1/posttag/list_by_tag", get(posttag_get_by_id))
+        .route("/v1/posttag/create", post(handler))
+        .route("/v1/posttag/update", post(handler))
+        .route("/v1/posttag/delete", post(handler))
+        .route("/v1/postdiff", get());
+        .route("/v1/postdiff/list", get());
+        .route("/v1/postdiff/list_by_post", get());
+        .route("/v1/postdiff/create", post());
+        .route("/v1/postdiff/update", post());
+        .route("/v1/postdiff/delete", post());
         .route("/v1/moderator", get(moderator_get_by_id))
         .route("/v1/moderator/list", get(handler))
         .route("/v1/moderator/list_by_subspace", get(handler))
@@ -54,13 +67,6 @@ async fn main() {
         .route("/v1/moderator/create", post(handler))
         .route("/v1/moderator/update", post(handler))
         .route("/v1/moderator/delete", post(handler))
-        .route("/v1/posttag", get(posttag_get_by_id))
-        .route("/v1/posttag/list", get(posttag_get_by_id))
-        .route("/v1/posttag/list_by_post", get(posttag_get_by_id))
-        .route("/v1/posttag/list_by_tag", get(posttag_get_by_id))
-        .route("/v1/posttag/create", post(handler))
-        .route("/v1/posttag/update", post(handler))
-        .route("/v1/posttag/delete", post(handler))
         .route("/v1/user", get(user_by_id))
         .route("/v1/user_by_account", get(user_by_id))
         .route("/v1/user/list", get(posttag_get_by_id))

@@ -409,6 +409,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b87248edafb776e59e6ee64a79086f65890d3510f2c656c000bf2a7e8a0aea40"
 
 [[package]]
+name = "meblog"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "hyper",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -692,16 +702,6 @@ name = "sync_wrapper"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
-
-[[package]]
-name = "talkit"
-version = "0.1.0"
-dependencies = [
- "axum",
- "hyper",
- "tokio",
- "tower-http",
-]
 
 [[package]]
 name = "tokio"

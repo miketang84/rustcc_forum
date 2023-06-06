@@ -3,7 +3,7 @@
 use axum::{
     extract::State,
     http::{uri::Uri, Request, Response},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -14,23 +14,37 @@ type Client = hyper::client::Client<HttpConnector, Body>;
 
 #[tokio::main]
 async fn main() {
-    // let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    // println!("listening on {}", addr);
-    // let serve_dir = ServeDir::new("assets").not_found_service(ServeFile::new("assets/index.html"));
-
-    // let app = Router::new()
-    //     .route("/foo", get(|| async { "Hi from /foo" }))
-    //     .nest_service("/assets", serve_dir.clone())
-    //     .fallback_service(serve_dir);
-
-    // axum::Server::bind(&addr)
-    //     .serve(app.into_make_service())
-    //     .await
-    //     .unwrap();
-
     let client = Client::new();
 
-    let app = Router::new().route("/", get(handler)).with_state(client);
+    let app = Router::new()
+        .route("/", get(handler))
+        .route("/latest_articles", get(handler))
+        .route("/latest_replied_articles", get(handler))
+        .route("/latest_articles_by_tag", get(handler))
+        .route("/latest_replied_articles_by_tag", get(handler))
+        .route("/sp", get(handler))
+        .route("/sp/create", get(handler).post(handler))
+        .route("/sp/edit", get(handler).post(handler))
+        .route("/article", get(handler))
+        .route("/article/create", get(handler).post(handler))
+        .route("/article/edit", get(handler).post(handler))
+        .route("/article/delete", get(handler).post(handler))
+        .route("/comment/create", get(handler).post(handler))
+        .route("/comment/edit", get(handler).post(handler))
+        .route("/comment/delete", get(handler).post(handler))
+        .route("/tag/create", get(handler).post(handler))
+        .route("/tag/edit", get(handler).post(handler))
+        .route("/tag/delete", get(handler).post(handler))
+        .route("/manage/my_articles", get(handler))
+        .route("/manage/my_tags", get(handler))
+        .route("/manage/pubprofile", get(handler).post(handler))
+        .route("/user/account", get(handler))
+        .route("/user/signout", get(handler))
+        .route("/user/register", post(handler))
+        .route("/user/login", post(handler))
+        .route("/user/login_with3rd", get(handler))
+        .route("/user/login_with_github", get(handler))
+        .with_state(client);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 4000));
     println!("reverse proxy listening on {}", addr);

@@ -1,5 +1,4 @@
 #![allow(unused)]
-
 use axum::{
     extract::State,
     http::{uri::Uri, Request, Response},
@@ -67,4 +66,78 @@ async fn handler(State(client): State<Client>, mut req: Request<Body>) -> Respon
     *req.uri_mut() = Uri::try_from(uri).unwrap();
 
     client.request(req).await.unwrap()
+}
+
+async fn index(State(client): State<Client>, mut req: Request<Body>) -> Response<Body> {
+    let path = req.uri().path();
+    let query = req.uri().query();
+
+    // check the user login status
+
+    // get subspace tags
+    let res_bytes = make_get(client, "/v1/tag/list_by_subspace", query).await;
+    let obj_vec: Vec<Model> = Model::from(res_bytes);
+
+    // get the latest articles
+    let res_bytes = make_get(client, "/v1/post/list_by_subspace", query).await;
+    let obj_vec: Vec<Model> = Model::from(res_bytes);
+
+    // get the latest replied articles
+    let res_bytes = make_get(client, "/v1/post/list_by_subspace_by_latest_replied", query).await;
+    let obj_vec: Vec<Model> = Model::from(res_bytes);
+
+    // get other extensive links (items)
+    let res_bytes = make_get(client, "/v1/extobj/list_by_subspace", query).await;
+    let obj_vec: Vec<Model> = Model::from(res_bytes);
+
+    // render the page
+
+    // construct the response
+}
+
+/// helper function
+async fn make_get(
+    client: Client,
+    path: &str,
+    query: Option<&str>,
+) -> anyhow::Result<hyper::body::Bytes> {
+    let pq = if let Some(query) = query {
+        format!("{}?{}", path, query)
+    } else {
+        format!("{}", path)
+    };
+    let uri = Uri::builder()
+        .scheme("http")
+        .authority("127.0.0.1:3000")
+        .path_and_query(&pq)
+        .build()
+        .unwrap();
+
+    let response = client.get(uri).await.unwrap();
+    let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
+    println!("body: {:?}", body_bytes);
+    Ok(body_bytes)
+}
+
+async fn make_post(
+    client: Client,
+    path: &str,
+    body: Option<&str>,
+) -> anyhow::Result<hyper::body::Bytes> {
+    let pq = if let Some(query) = query {
+        format!("{}?{}", path, query)
+    } else {
+        format!("{}", path)
+    };
+    let uri = Uri::builder()
+        .scheme("http")
+        .authority("127.0.0.1:3000")
+        .path_and_query(&pq)
+        .build()
+        .unwrap();
+
+    let response = client.get(uri).await.unwrap();
+    let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
+    println!("body: {:?}", body_bytes);
+    Ok(body_bytes)
 }

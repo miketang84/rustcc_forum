@@ -1,7 +1,8 @@
 #![allow(unused)]
+use askama::Template;
 use axum::{
     extract::{RawQuery, State},
-    http::{uri::Uri, Request, Response},
+    http::{response, uri::Uri, Request, Response},
     response::{Html, IntoResponse},
     routing::{get, post},
     Router,
@@ -69,6 +70,10 @@ async fn handler(State(client): State<Client>, mut req: Request<Body>) -> Respon
     client.request(req).await.unwrap()
 }
 
+use gutp_types::GutpExtobj;
+use gutp_types::GutpPost;
+use gutp_types::GutpTag;
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate {
@@ -114,42 +119,36 @@ async fn make_get(
     path: &str,
     query: Option<String>,
 ) -> anyhow::Result<hyper::body::Bytes> {
-    let pq = if let Some(query) = query {
-        format!("{}?{}", path, query)
+    use hyper::{Body, Client, Method, Request};
+    let uri = if let Some(query) = query {
+        format!("http://127.0.0.1:3000{}?{}", path, query)
     } else {
-        format!("{}", path)
+        format!("http://127.0.0.1:3000{}", path)
     };
-    let uri = Uri::builder()
-        .scheme("http")
-        .authority("127.0.0.1:3000")
-        .path_and_query(&pq)
-        .build()
-        .unwrap();
 
-    let response = client.get(uri).await.unwrap();
+    let req = Request::builder()
+        .method(Method::GET)
+        .uri(&uri)
+        .expect("request builder");
+
+    let response = client.request(req).await.unwrap();
     let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
     println!("body: {:?}", body_bytes);
     Ok(body_bytes)
 }
 
-async fn make_post(
-    client: Client,
-    path: &str,
-    body: Option<&str>,
-) -> anyhow::Result<hyper::body::Bytes> {
-    let pq = if let Some(query) = query {
-        format!("{}?{}", path, query)
-    } else {
-        format!("{}", path)
-    };
-    let uri = Uri::builder()
-        .scheme("http")
-        .authority("127.0.0.1:3000")
-        .path_and_query(&pq)
-        .build()
-        .unwrap();
+async fn make_post(client: Client, path: &str, body: String) -> anyhow::Result<hyper::body::Bytes> {
+    use hyper::{Body, Client, Method, Request};
 
-    let response = client.get(uri).await.unwrap();
+    let uri = format!("http://127.0.0.1:3000{}", path);
+
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri(&uri)
+        .body(body)
+        .expect("request builder");
+
+    let response = client.request(req).await.unwrap();
     let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
     println!("body: {:?}", body_bytes);
     Ok(body_bytes)

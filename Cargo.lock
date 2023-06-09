@@ -587,6 +587,8 @@ dependencies = [
  "axum",
  "gutp-types",
  "hyper",
+ "serde",
+ "serde_json",
  "tokio",
  "tower-http",
 ]

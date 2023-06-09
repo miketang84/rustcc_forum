@@ -49,6 +49,7 @@ async fn main() {
         .route("/v1/tag/list", get(tag_list))
         .route("/v1/tag/list_by_subspace", get(tag_list_by_subspace))
         .route("/v1/tag/list_by_creator", get(tag_list_by_creator))
+        .route("/v1/tag/list_by_post", get(tag_list_by_post))
         .route("/v1/tag/create", post(tag_create))
         .route("/v1/tag/update", post(tag_update))
         .route("/v1/tag/delete", post(tag_delete))

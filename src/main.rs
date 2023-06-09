@@ -83,19 +83,19 @@ async fn index(State(client): State<Client>, RawQuery(query): RawQuery) -> impl 
 
     // get subspace tags
     let res_bytes = make_get(client, "/v1/tag/list_by_subspace", query).await;
-    let obj_vec: Vec<Model> = Model::from(res_bytes);
+    let tags: Vec<GutpTag> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
 
     // get the latest articles
     let res_bytes = make_get(client, "/v1/post/list_by_subspace", query).await;
-    let obj_vec: Vec<Model> = Model::from(res_bytes);
+    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
 
     // get the latest replied articles
     let res_bytes = make_get(client, "/v1/post/list_by_subspace_by_latest_replied", query).await;
-    let obj_vec: Vec<Model> = Model::from(res_bytes);
+    let replied_posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
 
     // get other extensive links (items)
     let res_bytes = make_get(client, "/v1/extobj/list_by_subspace", query).await;
-    let obj_vec: Vec<Model> = Model::from(res_bytes);
+    let extobjs: Vec<GutpExtobj> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
 
     // render the page
 

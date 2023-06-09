@@ -1,7 +1,8 @@
 #![allow(unused)]
 use axum::{
-    extract::State,
+    extract::{RawQuery, State},
     http::{uri::Uri, Request, Response},
+    response::{Html, IntoResponse},
     routing::{get, post},
     Router,
 };
@@ -16,7 +17,7 @@ async fn main() {
     let client = Client::new();
 
     let app = Router::new()
-        .route("/", get(handler))
+        .route("/", get(index))
         .route("/latest_articles", get(handler))
         .route("/latest_replied_articles", get(handler))
         .route("/latest_articles_by_tag", get(handler))
@@ -68,10 +69,16 @@ async fn handler(State(client): State<Client>, mut req: Request<Body>) -> Respon
     client.request(req).await.unwrap()
 }
 
-async fn index(State(client): State<Client>, mut req: Request<Body>) -> Response<Body> {
-    let path = req.uri().path();
-    let query = req.uri().query();
+#[derive(Template)]
+#[template(path = "index.html")]
+struct IndexTemplate {
+    tags: Vec<GutpTag>,
+    posts: Vec<GutpPost>,
+    replied_posts: Vec<GutpPost>,
+    extobjs: Vec<GutpExtobj>,
+}
 
+async fn index(State(client): State<Client>, RawQuery(query): RawQuery) -> impl IntoResponse {
     // check the user login status
 
     // get subspace tags
@@ -92,14 +99,20 @@ async fn index(State(client): State<Client>, mut req: Request<Body>) -> Response
 
     // render the page
 
-    // construct the response
+    let template = IndexTemplate {
+        tags,
+        posts,
+        replied_posts,
+        extobjs,
+    };
+    HtmlTemplate(template)
 }
 
 /// helper function
 async fn make_get(
     client: Client,
     path: &str,
-    query: Option<&str>,
+    query: Option<String>,
 ) -> anyhow::Result<hyper::body::Bytes> {
     let pq = if let Some(query) = query {
         format!("{}?{}", path, query)
@@ -140,4 +153,23 @@ async fn make_post(
     let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
     println!("body: {:?}", body_bytes);
     Ok(body_bytes)
+}
+
+/// Define the template handler
+struct HtmlTemplate<T>(T);
+
+impl<T> IntoResponse for HtmlTemplate<T>
+where
+    T: Template,
+{
+    fn into_response(self) -> Response {
+        match self.0.render() {
+            Ok(html) => Html(html).into_response(),
+            Err(err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to render template. Error: {}", err),
+            )
+                .into_response(),
+        }
+    }
 }

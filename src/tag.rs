@@ -1,3 +1,9 @@
+use askama::Template;
+use axum::{
+    extract::{RawQuery, State, Form, Query,},
+    response::{Html, IntoResponse},
+};
+
 use crate::HtmlTemplate;
 
 #[derive(Template)]
@@ -26,12 +32,18 @@ pub async fn view_tag_create(
     })
 }
 
+struct PostTagCreateParams {
+    subspace_id: String,
+}
+
 pub async fn post_tag_create(
     State(client): State<Client>,
-    Form(params): Form<PostTagCreateParams>
+    Form(params): Form<PostTagCreateParams>,
     body: String,
 ) -> impl IntoResponse {
     // check the user login status
+
+    // TODO: parse form params
 
     // forward post form body to gutp
     let res_bytes = make_post(client, "/v1/tag/create", body).await;

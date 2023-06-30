@@ -1,9 +1,9 @@
 #![allow(unused)]
 use askama::Template;
 use axum::{
-    extract::{RawQuery, State},
+    extract::{Query, RawQuery, State},
     http::{response, uri::Uri, Request, Response},
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Redirect},
     routing::{get, post},
     Router,
 };
@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 // use tower_http::services::{ServeDir, ServeFile};
 
 use hyper::{client::HttpConnector, Body, Client as HyperClient, Method, Request as HyperRequest};
-type Client = hyper::client::Client<HttpConnector, Body>;
+pub type Client = hyper::client::Client<HttpConnector, Body>;
 
 mod article;
 mod comment;
@@ -145,9 +145,15 @@ struct ErrorInfoTemplate {
     err_info: String,
 }
 
-pub async fn view_error_info(
-    Query(params): Query<ErrorInfoTemplate>,
-) -> impl IntoResponse {
+pub async fn view_error_info(Query(params): Query<ErrorInfoTemplate>) -> impl IntoResponse {
     // render the page
-    HtmlTemplate(ErrorInfoTemplate { params.action, params.err_info })
+    HtmlTemplate(ErrorInfoTemplate {
+        action: params.action,
+        err_info: params.err_info,
+    })
+}
+
+pub fn redirect_to_error_page(action: &str, err_info: &str) -> Redirect {
+    let redirect_uri = format!("/error/info?action={}&err_info={}", action, err_info);
+    Redirect::to(&redirect_uri)
 }

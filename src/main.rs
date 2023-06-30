@@ -10,23 +10,29 @@ use axum::{
 use std::net::SocketAddr;
 // use tower_http::services::{ServeDir, ServeFile};
 
-use hyper::{client::HttpConnector, Body};
+use hyper::{client::HttpConnector, Body, Client as HyperClient, Method, Request as HyperRequest};
 type Client = hyper::client::Client<HttpConnector, Body>;
+
+mod article;
+mod comment;
+mod index;
+mod tag;
+mod user;
 
 #[tokio::main]
 async fn main() {
     let client = Client::new();
 
     let app = Router::new()
-        .route("/", get(index))
-        .route("/latest_articles", get(latest_articles))
-        .route("/latest_replied_articles", get(handler))
-        .route("/latest_articles_by_tag", get(handler))
-        .route("/latest_replied_articles_by_tag", get(handler))
-        .route("/sp", get(handler))
-        .route("/sp/create", get(handler).post(handler))
-        .route("/sp/edit", get(handler).post(handler))
-        .route("/article", get(article))
+        .route("/", get(index::index))
+        .route("/subspace", get(handler))
+        .route("/subspace/create", get(handler).post(handler))
+        .route("/subspace/edit", get(handler).post(handler))
+        .route("/article", get(article::article))
+        .route("/article/list", get(article::latest_articles))
+        .route("/article/list_replied", get(handler))
+        .route("/article/list_by_tag", get(handler))
+        .route("/article/list_replied_by_tag", get(handler))
         .route("/article/create", get(handler).post(handler))
         .route("/article/edit", get(handler).post(handler))
         .route("/article/delete", get(handler).post(handler))
@@ -36,18 +42,19 @@ async fn main() {
         .route("/tag/create", get(handler).post(handler))
         .route("/tag/edit", get(handler).post(handler))
         .route("/tag/delete", get(handler).post(handler))
-        .route("/manage/my_articles", get(handler))
-        .route("/manage/my_tags", get(handler))
-        .route("/manage/pubprofile", get(handler).post(handler))
+        // .route("/manage/my_articles", get(handler))
+        // .route("/manage/my_tags", get(handler))
+        // .route("/manage/pubprofile", get(handler).post(handler))
         .route("/user/account", get(handler))
         .route("/user/signout", get(handler))
         .route("/user/register", post(handler))
         .route("/user/login", post(handler))
         .route("/user/login_with3rd", get(handler))
         .route("/user/login_with_github", get(handler))
+        .route("/error/info", get(view_error_info))
         .with_state(client);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 4000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("reverse proxy listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -63,145 +70,26 @@ async fn handler(State(client): State<Client>, mut req: Request<Body>) -> Respon
         .map(|v| v.as_str())
         .unwrap_or(path);
 
-    let uri = format!("http://127.0.0.1:3000{}", path_query);
+    let uri = format!("http://127.0.0.1:4000{}", path_query);
 
     *req.uri_mut() = Uri::try_from(uri).unwrap();
 
     client.request(req).await.unwrap()
 }
 
-use gutp_types::GutpPost;
-use gutp_types::GutpTag;
-use gutp_types::{GutpComment, GutpExtobj};
-
-#[derive(Template)]
-#[template(path = "index.html")]
-struct IndexTemplate {
-    tags: Vec<GutpTag>,
-    posts: Vec<GutpPost>,
-    replied_posts: Vec<GutpPost>,
-    extobjs: Vec<GutpExtobj>,
-}
-
-async fn index(State(client): State<Client>, RawQuery(query): RawQuery) -> impl IntoResponse {
-    // check the user login status
-
-    // get subspace tags
-    let res_bytes = make_get(client, "/v1/tag/list_by_subspace", query).await;
-    let tags: Vec<GutpTag> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get the latest articles
-    let res_bytes = make_get(client, "/v1/post/list_by_subspace", query).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get the latest replied articles
-    let res_bytes = make_get(client, "/v1/post/list_by_subspace_by_latest_replied", query).await;
-    let replied_posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get other extensive links (items)
-    let res_bytes = make_get(client, "/v1/extobj/list_by_subspace", query).await;
-    let extobjs: Vec<GutpExtobj> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // render the page
-
-    let template = IndexTemplate {
-        tags,
-        posts,
-        replied_posts,
-        extobjs,
-    };
-    HtmlTemplate(template)
-}
-
-#[derive(Template)]
-#[template(path = "articles.html")]
-struct LatestArticlesTemplate {
-    tags: Vec<GutpTag>,
-    posts: Vec<GutpPost>,
-    extobjs: Vec<GutpExtobj>,
-}
-
-async fn latest_articles(
-    State(client): State<Client>,
-    RawQuery(query): RawQuery,
-) -> impl IntoResponse {
-    // check the user login status
-
-    // query format: id=xxxxx, id is the id of subspace
-
-    // get subspace tags
-    let res_bytes = make_get(client, "/v1/tag/list_by_subspace", query).await;
-    let tags: Vec<GutpTag> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get the latest articles
-    let res_bytes = make_get(client, "/v1/post/list_by_subspace", query).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // paging information
-
-    // get other extensive links (items)
-    let res_bytes = make_get(client, "/v1/extobj/list_by_subspace", query).await;
-    let extobjs: Vec<GutpExtobj> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // render the page
-
-    let template = LatestArticlesTemplate {
-        tags,
-        posts,
-        extobjs,
-    };
-    HtmlTemplate(template)
-}
-
-#[derive(Template)]
-#[template(path = "article.html")]
-struct ArticleTemplate {
-    posts: Vec<GutpPost>,
-    comments: Vec<GutpComment>,
-    tags: Vec<GutpTag>,
-}
-
-async fn article(State(client): State<Client>, RawQuery(query): RawQuery) -> impl IntoResponse {
-    // check the user login status
-
-    // query is like: id=xxxxxxxxxx
-    // id is the article id
-
-    // get this article
-    let res_bytes = make_get(client, "/v1/post", query).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get comments of this article
-    let res_bytes = make_get(client, "/v1/comment/list_by_post", query).await;
-    let comments: Vec<GutpComment> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get subspace tags
-    let res_bytes = make_get(client, "/v1/tag/list_by_post", query).await;
-    let tags: Vec<GutpTag> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // render the page
-    let template = ArticleTemplate {
-        posts,
-        comments,
-        tags,
-    };
-    HtmlTemplate(template)
-}
-
 /// helper function
-async fn make_get(
+pub async fn make_get(
     client: Client,
     path: &str,
     query: Option<String>,
 ) -> anyhow::Result<hyper::body::Bytes> {
-    use hyper::{Body, Client, Method, Request};
     let uri = if let Some(query) = query {
-        format!("http://127.0.0.1:3000{}?{}", path, query)
+        format!("http://127.0.0.1:4000{}?{}", path, query)
     } else {
-        format!("http://127.0.0.1:3000{}", path)
+        format!("http://127.0.0.1:4000{}", path)
     };
 
-    let req = Request::builder()
+    let req = HyperRequest::builder()
         .method(Method::GET)
         .uri(&uri)
         .expect("request builder");
@@ -212,12 +100,14 @@ async fn make_get(
     Ok(body_bytes)
 }
 
-async fn make_post(client: Client, path: &str, body: String) -> anyhow::Result<hyper::body::Bytes> {
-    use hyper::{Body, Client, Method, Request};
+pub async fn make_post(
+    client: Client,
+    path: &str,
+    body: String,
+) -> anyhow::Result<hyper::body::Bytes> {
+    let uri = format!("http://127.0.0.1:4000{}", path);
 
-    let uri = format!("http://127.0.0.1:3000{}", path);
-
-    let req = Request::builder()
+    let req = HyperRequest::builder()
         .method(Method::POST)
         .uri(&uri)
         .body(body)
@@ -230,7 +120,7 @@ async fn make_post(client: Client, path: &str, body: String) -> anyhow::Result<h
 }
 
 /// Define the template handler
-struct HtmlTemplate<T>(T);
+pub struct HtmlTemplate<T>(T);
 
 impl<T> IntoResponse for HtmlTemplate<T>
 where
@@ -246,4 +136,18 @@ where
                 .into_response(),
         }
     }
+}
+
+#[derive(Template)]
+#[template(path = "action_error.html")]
+struct ErrorInfoTemplate {
+    action: String,
+    err_info: String,
+}
+
+pub async fn view_error_info(
+    Query(params): Query<ErrorInfoTemplate>,
+) -> impl IntoResponse {
+    // render the page
+    HtmlTemplate(ErrorInfoTemplate { params.action, params.err_info })
 }

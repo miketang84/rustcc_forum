@@ -10,8 +10,10 @@ use axum::{
 use std::net::SocketAddr;
 // use tower_http::services::{ServeDir, ServeFile};
 
-use hyper::{client::HttpConnector, Body, Client as HyperClient, Method, Request as HyperRequest};
-pub type Client = hyper::client::Client<HttpConnector, Body>;
+use hyper::{
+    client::HttpConnector, Body, Client as RawHyperClient, Method, Request as HyperRequest,
+};
+pub type HyperClient = hyper::client::Client<HttpConnector, Body>;
 
 mod article;
 mod comment;
@@ -19,9 +21,24 @@ mod index;
 mod tag;
 mod user;
 
+#[derive(Clone)]
+pub struct AppState {
+    hclient: HyperClient,
+    rclient: redis::Client,
+    redis_conn: redis::aio::Connection,
+}
+
 #[tokio::main]
 async fn main() {
-    let client = Client::new();
+    let hyper_client = HyperClient::new();
+    let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let mut redis_conn = redis_client.get_async_connection().await?;
+
+    let app_state = AppState {
+        hclient: hyper_client,
+        rclient: redis_client,
+        redis_conn,
+    };
 
     let app = Router::new()
         .route("/", get(index::index))
@@ -52,7 +69,7 @@ async fn main() {
         .route("/user/login_with3rd", get(handler))
         .route("/user/login_with_github", get(handler))
         .route("/error/info", get(view_error_info))
-        .with_state(client);
+        .with_state(app_state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("reverse proxy listening on {}", addr);
@@ -62,7 +79,7 @@ async fn main() {
         .unwrap();
 }
 
-async fn handler(State(client): State<Client>, mut req: Request<Body>) -> Response<Body> {
+async fn handler(State(client): State<AppState>, mut req: Request<Body>) -> Response<Body> {
     let path = req.uri().path();
     let path_query = req
         .uri()

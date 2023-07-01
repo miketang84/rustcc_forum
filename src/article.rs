@@ -6,7 +6,7 @@ use axum::{
 use gutp_types::{GutpComment, GutpPost, GutpSubspace};
 
 use crate::redirect_to_error_page;
-use crate::Client;
+use crate::AppState;
 use crate::HtmlTemplate;
 use crate::{make_get, make_post};
 
@@ -21,7 +21,7 @@ struct ViewArticleCreateParams {
 }
 
 pub async fn view_article_create(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Query(params): Query<ViewArticleCreateParams>,
     RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
@@ -32,7 +32,7 @@ pub async fn view_article_create(
 
     // get the post object from the gutp service, to check the exsistence of that post
     let query = format!("id={}", subspace_id);
-    let res_bytes = make_get(client, "/v1/subspace", Some(query)).await;
+    let res_bytes = make_get(app_state.hclient, "/v1/subspace", Some(query)).await;
     let subspaces: Vec<GutpSubspace> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
     if let Some(subspace) = subspaces.into_iter().next() {
         // render the page
@@ -49,7 +49,7 @@ struct PostArticleCreateParams {
 }
 
 pub async fn post_article_create(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Form(params): Form<PostArticleCreateParams>,
     body: String,
 ) -> impl IntoResponse {
@@ -61,7 +61,7 @@ pub async fn post_article_create(
     // TODO: check the existence of subspace by query
 
     // forward post form body to gutp
-    let res_bytes = make_post(client, "/v1/post/create", body).await;
+    let res_bytes = make_post(app_state.hclient, "/v1/post/create", body).await;
     let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
     if let Some(post) = posts.into_iter().next() {
         // redirect to the article page
@@ -87,7 +87,7 @@ struct ViewArticleEditParams {
 }
 
 pub async fn view_article_edit(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Query(params): Query<ViewArticleEditParams>,
     RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
@@ -97,7 +97,7 @@ pub async fn view_article_edit(
     let post_id = params.id;
 
     // get the old article by request to gutp
-    let res_bytes = make_get(client, "/v1/article", query).await;
+    let res_bytes = make_get(app_state.hclient, "/v1/article", query).await;
     let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
     if let Some(post) = posts.into_iter().next() {
         HtmlTemplate(ArticleEditTemplate { post })
@@ -113,7 +113,7 @@ struct PostArticleEditParams {
 }
 
 pub async fn post_article_edit(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Form(params): Form<PostArticleEditParams>,
     body: String,
 ) -> Redirect {
@@ -123,7 +123,7 @@ pub async fn post_article_edit(
     // let tag_id = params.id;
 
     // post to gutp
-    let res_bytes = make_post(client, "/v1/article/edit", body).await;
+    let res_bytes = make_post(app_state.hclient, "/v1/article/edit", body).await;
     let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
     if let Some(post) = posts.into_iter().next() {
         // redirect to the article page
@@ -150,7 +150,7 @@ struct ViewArticleDeleteParams {
 }
 
 pub async fn view_article_delete(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Query(params): Query<ViewArticleDeleteParams>,
     RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
@@ -162,7 +162,12 @@ pub async fn view_article_delete(
 
     let query = format!("post_id={}", id);
     // get the old tag by request to gutp
-    let res_bytes = make_get(client, "/v1/comment/list_by_post_id", Some(query)).await;
+    let res_bytes = make_get(
+        app_state.hclient,
+        "/v1/comment/list_by_post_id",
+        Some(query),
+    )
+    .await;
     let comments: Vec<GutpComment> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
     if comments.is_empty() {
         // can be deleted
@@ -181,7 +186,7 @@ struct PostArticleDeleteParams {
 }
 
 pub async fn post_article_delete(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Form(params): Form<PostArticleDeleteParams>,
     body: String,
 ) -> Redirect {
@@ -191,7 +196,7 @@ pub async fn post_article_delete(
     let post_id = params.id;
     let subspace_id = params.subspace_id;
 
-    let res_bytes = make_post(client, "/v1/post/delete", body).await;
+    let res_bytes = make_post(app_state.hclient, "/v1/post/delete", body).await;
     let _posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
 
     // TODO: process the error branch of deleting

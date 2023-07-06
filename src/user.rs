@@ -1,8 +1,10 @@
 use askama::Template;
 use axum::{
     extract::{Form, Query, RawQuery, State},
+    http::header,
     response::{Html, IntoResponse, Redirect},
 };
+use axum_extra::extract::cookie::Cookie;
 use gutp_types::{GutpComment, GutpPost, GutpSubspace, GutpUser};
 
 use crate::redirect_to_error_page;
@@ -40,7 +42,7 @@ struct GithubOauthCallbackParams {
 }
 
 pub async fn login_with_github_callback(
-    State(client): State<Client>,
+    State(app_state): State<AppState>,
     Query(params): Query<GithubOauthCallbackParams>,
     RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
@@ -102,6 +104,7 @@ struct GithubCredentials {
 }
 
 async fn get_github_token(
+    app_state: Arc<AppState>,
     code: &str,
     client_id: &str,
     client_secret: &str,
@@ -145,6 +148,7 @@ struct GithubUserInfo {
 }
 
 async fn get_github_user_info(
+    app_state: Arc<AppState>,
     access_token: &str,
     account: String,
 ) -> Result<GithubUserInfo, String> {
@@ -180,37 +184,30 @@ async fn get_github_user_info(
 
 const TTL: usize = 60 * 24 * 3600;
 
-async fn login_user_with_account(account: &str) -> impl IntoResponse {
+async fn login_user_with_account(app_state: AppState, account: &str) -> impl IntoResponse {
     // first, set session key in server cache
-    let cookie = sha3_256_encode(&random_string(8));
-    set_session(account, &cookie);
+    let cookiestr = set_session(app_state, account);
 
-    // second, set cookie to response
-    let mut response = Response::new();
-    let _ = set_cookie(
-        &mut response,
-        "gutp_discux_session".to_string(),
-        cookie,
-        None,
-        Some("/".to_string()),
-        None,
-        Some(TTL),
-    );
+    let cookie = Cookie::build("meblog_session", &cookiestr)
+        // .domain("/")
+        .path("/")
+        //.secure(true)
+        .max_age(cookie::time::Duration::seconds(TTL))
+        .http_only(true)
+        .finish();
 
-    // redirect to index
-    set_response_redirect!(response, "/");
-
-    Ok(response)
+    (
+        [(header::SET_COOKIE, cookie.to_string())],
+        Redirect::to("/"),
+    )
 }
 
-pub fn set_session(account: &str, cookie: &str) -> Result<String, String> {
-    let ttl = TTL;
-    let redis = db::get_redis();
-    let _: () = redis
-        .hset(&cookie, "login_time", Utc::now().timestamp())
-        .unwrap();
-    let _: () = redis.hset(&cookie, "account", account).unwrap();
-    let _: () = redis.expire(&cookie, ttl).unwrap();
+pub async fn set_session(app_state: AppState, account: &str) -> String {
+    let x = rand::random::<[u8; 32]>();
+    let cookie = sha256::digest(x);
+    let cookie_key = format!("meblog_session:{}", cookie);
+    _ = app_state.redis_conn.set(&cookie_key, account).await;
+    _ = app_state.redis_conn.expire(&cookie, TTL).await;
 
-    Ok(cookie)
+    cookie
 }

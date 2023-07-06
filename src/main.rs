@@ -2,12 +2,15 @@
 use askama::Template;
 use axum::{
     extract::{Query, RawQuery, State},
-    http::{response, uri::Uri, Request, Response},
-    response::{Html, IntoResponse, Redirect},
+    http::{response, uri::Uri, Request, Response as HyperResponse},
+    middleware::{self, Next},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Router,
 };
+use axum_extra::extract::cookie::{Cookie, CookieJar};
 use std::net::SocketAddr;
+use std::sync::Arc;
 // use tower_http::services::{ServeDir, ServeFile};
 
 use hyper::{
@@ -22,10 +25,43 @@ mod tag;
 mod user;
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct AppStateInner {
     hclient: HyperClient,
     rclient: redis::Client,
     redis_conn: redis::aio::Connection,
+}
+
+type AppState = Arc<AppStateInner>;
+
+// The customized middleware
+async fn top_middleware<B>(
+    State(app_state): State<AppState>,
+    // you can add more extractors here but the last
+    // extractor must implement `FromRequest` which
+    // `Request` does
+    cookie_jar: CookieJar,
+    request: Request<B>,
+    next: Next<B>,
+) -> Response {
+    // do something with `request`...
+    if let Some(session_id) = cookie_jar.get("session_id") {
+        // check this session id with redis
+        let redis_conn = app_state.redis_conn;
+        let key = format!("meblog_session:{}", session_id);
+        if let Ok(user_id) = redis_conn.get(&key).await {
+            // insert this user_id to request extension
+        } else {
+            // no this session, do nothing
+        }
+    } else {
+        // no cookie, do nothing
+    }
+
+    let response = next.run(request).await;
+
+    // do something with `response`...
+
+    response
 }
 
 #[tokio::main]
@@ -34,11 +70,11 @@ async fn main() {
     let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
     let mut redis_conn = redis_client.get_async_connection().await?;
 
-    let app_state = AppState {
+    let app_state: AppState = Arc::new(AppStateInner {
         hclient: hyper_client,
         rclient: redis_client,
         redis_conn,
-    };
+    });
 
     let app = Router::new()
         .route("/", get(index::index))
@@ -69,9 +105,13 @@ async fn main() {
         .route("/user/login_with3rd", get(handler))
         .route("/user/login_with_github", get(handler))
         .route("/error/info", get(view_error_info))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            top_middleware,
+        ))
         .with_state(app_state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
     println!("reverse proxy listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -87,7 +127,7 @@ async fn handler(State(client): State<AppState>, mut req: Request<Body>) -> Resp
         .map(|v| v.as_str())
         .unwrap_or(path);
 
-    let uri = format!("http://127.0.0.1:4000{}", path_query);
+    let uri = format!("http://127.0.0.1:3000{}", path_query);
 
     *req.uri_mut() = Uri::try_from(uri).unwrap();
 
@@ -101,9 +141,9 @@ pub async fn make_get(
     query: Option<String>,
 ) -> anyhow::Result<hyper::body::Bytes> {
     let uri = if let Some(query) = query {
-        format!("http://127.0.0.1:4000{}?{}", path, query)
+        format!("http://127.0.0.1:3000{}?{}", path, query)
     } else {
-        format!("http://127.0.0.1:4000{}", path)
+        format!("http://127.0.0.1:3000{}", path)
     };
 
     let req = HyperRequest::builder()
@@ -122,7 +162,7 @@ pub async fn make_post(
     path: &str,
     body: String,
 ) -> anyhow::Result<hyper::body::Bytes> {
-    let uri = format!("http://127.0.0.1:4000{}", path);
+    let uri = format!("http://127.0.0.1:3000{}", path);
 
     let req = HyperRequest::builder()
         .method(Method::POST)

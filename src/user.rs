@@ -3,6 +3,7 @@ use axum::{
     extract::{Form, Query, RawQuery, State},
     http::header,
     response::{Html, IntoResponse, Redirect},
+    Extension,
 };
 use axum_extra::extract::cookie::Cookie;
 use gutp_types::{GutpComment, GutpPost, GutpSubspace, GutpUser};
@@ -10,6 +11,7 @@ use gutp_types::{GutpComment, GutpPost, GutpSubspace, GutpUser};
 use crate::redirect_to_error_page;
 use crate::AppState;
 use crate::HtmlTemplate;
+use crate::UserId;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
@@ -24,15 +26,17 @@ pub async fn view_user_login() -> impl IntoResponse {
 #[template(path = "user_info_page.html")]
 struct UserInfoPageTemplate {}
 
-pub async fn view_user_info() -> impl IntoResponse {
+pub async fn view_user_info(Extension(user_id): Extension<UserId>) -> impl IntoResponse {
     // TODO: how to get user from middlelayer?
-    let user = params.user;
-    if let Some(user) = user {
+    // retreive user from gutp service
+
+    // has login info
+    if let Some(user_id) = user_id {
         // render user info page
         HtmlTemplate(UserInfoPageTemplate {})
     } else {
         // if not logged in, redirect to login page
-        let redirect_uri = format!("/article?id={}", post.id);
+        let redirect_uri = format!("/login");
         Redirect::to(&redirect_uri)
     }
 }
@@ -188,7 +192,7 @@ async fn login_user_with_account(app_state: AppState, account: &str) -> impl Int
     // first, set session key in server cache
     let cookiestr = set_session(app_state, account);
 
-    let cookie = Cookie::build("meblog_session", &cookiestr)
+    let cookie = Cookie::build("meblog_sid", &cookiestr)
         // .domain("/")
         .path("/")
         //.secure(true)

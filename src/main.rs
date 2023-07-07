@@ -31,7 +31,9 @@ pub struct AppStateInner {
     redis_conn: redis::aio::Connection,
 }
 
-type AppState = Arc<AppStateInner>;
+pub type AppState = Arc<AppStateInner>;
+
+pub type UserId = Option<String>;
 
 // The customized middleware
 async fn top_middleware<B>(
@@ -40,16 +42,17 @@ async fn top_middleware<B>(
     // extractor must implement `FromRequest` which
     // `Request` does
     cookie_jar: CookieJar,
-    request: Request<B>,
+    mut req: Request<B>,
     next: Next<B>,
 ) -> Response {
     // do something with `request`...
-    if let Some(session_id) = cookie_jar.get("session_id") {
+    if let Some(session_id) = cookie_jar.get("meblog_sid") {
         // check this session id with redis
         let redis_conn = app_state.redis_conn;
         let key = format!("meblog_session:{}", session_id);
         if let Ok(user_id) = redis_conn.get(&key).await {
             // insert this user_id to request extension
+            req.extensions_mut().insert(Some(user_id));
         } else {
             // no this session, do nothing
         }
@@ -57,7 +60,7 @@ async fn top_middleware<B>(
         // no cookie, do nothing
     }
 
-    let response = next.run(request).await;
+    let response = next.run(req).await;
 
     // do something with `response`...
 

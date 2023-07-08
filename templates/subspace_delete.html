@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"Delete Subspace"}}
+{% endblock title %}
+
+{% block content %}
+<div class="body-content">
+    <h3>
+    {{"Delete Subspace"}} 
+    </h3>
+    <p>{{"Are you sure to delete it?"}}
+        <br>
+        <span>{{subspace.title}}</span>
+        <br>
+	      {{"Sure?"}}
+    </p>
+
+    <form class="delete_form" action="/subspace/delete" method="post">
+        <input type="hidden" name="id" value="{{subspace.id}}">
+        <br> 
+	      <input type="submit" value="{{"Sure"}}"> &nbsp; 
+        <a href="#" onclick="window.history.back();">{{"Cancel"}}</a>
+    </form>
+</div>
+{% endblock content %}

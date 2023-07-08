@@ -2,12 +2,14 @@ use askama::Template;
 use axum::{
     extract::{Form, Query, RawQuery, State},
     response::{Html, IntoResponse, Redirect},
+    Extension,
 };
 use gutp_types::{GutpComment, GutpPost, GutpSubspace};
+use serde::{Deserialize, Serialize};
 
 use crate::redirect_to_error_page;
-use crate::Client;
 use crate::HtmlTemplate;
+use crate::LoggedUserId;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
@@ -17,32 +19,63 @@ struct SubspaceCreateTemplate {}
 struct ViewSubspaceCreateParams {}
 
 pub async fn view_subspace_create(
-    State(client): State<Client>,
     Query(params): Query<ViewSubspaceCreateParams>,
     RawQuery(query): RawQuery,
+    Extension(logged_user_id): Extension<LoggedUserId>,
 ) -> impl IntoResponse {
     // check the user login status
     // TODO: who can create a new subspace?
     // For forum case, only admin has the permission to create a new subspace
     // for blog case, every on can create their own blog subspace
+    if logged_user_id.is_none() {
+        let action = format!("Not logged in");
+        let err_info = "Need login firstly to get proper permission.";
+        return redirect_to_error_page(&action, err_info).into_response();
+    }
 
-    HtmlTemplate(SubspaceCreateTemplate {})
+    HtmlTemplate(SubspaceCreateTemplate {}).into_response()
 }
 
-struct PostSubspaceCreateParams {}
+struct PostSubspaceCreateParams {
+    title: String,
+    description: String,
+}
 
 pub async fn post_subspace_create(
-    State(client): State<Client>,
+    Extension(logged_user_id): Extension<LoggedUserId>,
     Form(params): Form<PostSubspaceCreateParams>,
-    body: String,
 ) -> impl IntoResponse {
     // check the user login status
+    if logged_user_id.is_none() {
+        let action = format!("Not logged in");
+        let err_info = "Need login firstly to get proper permission.";
+        return redirect_to_error_page(&action, err_info);
+    }
 
-    // TODO: check the existence of subspace by query
+    #[derive(Serialize)]
+    struct InnerSubspaceCreateParams {
+        title: String,
+        description: String,
+        banner: String,
+        owner_id: String,
+        profession: String,
+        appid: String,
+        is_public: bool,
+    }
 
-    // forward post form body to gutp
-    let res_bytes = make_post(client, "/v1/subspace/create", body).await;
-    let subspaces: Vec<GutpSubspace> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
+    let inner_params = InnerSubspaceCreateParams {
+        title: params.title,
+        description: params.description,
+        banner: "".to_string(),
+        owner_id: logged_user_id.clone().unwrap(),
+        profession: crate::APPPROFESSION.to_string(),
+        appid: crate::APPID.to_string(),
+        is_public: true,
+    };
+
+    let subspaces: Vec<GutpSubspace> = make_post("/v1/subspace/create", &inner_params)
+        .await
+        .unwrap_or(vec![]);
     if let Some(sp) = subspaces.into_iter().next() {
         let redirect_uri = format!("/subspace?id={}", sp.id);
         Redirect::to(&redirect_uri)
@@ -54,6 +87,7 @@ pub async fn post_subspace_create(
     }
 }
 
+/*
 #[derive(Template)]
 #[template(path = "subspace_edit.html")]
 struct SubspaceEditTemplate {
@@ -112,41 +146,52 @@ pub async fn post_subspace_edit(
         redirect_to_error_page(&action, err_info)
     }
 }
+*/
 
 #[derive(Template)]
 #[template(path = "subspace_delete.html")]
 struct SubspaceDeleteTemplate {
-    id: String,
-    title: String,
+    subspace: GutpSubspace,
 }
 
 struct ViewSubspaceDeleteParams {
     id: String,
-    title: String,
 }
 
 pub async fn view_subspace_delete(
-    State(client): State<Client>,
+    Extension(logged_user_id): Extension<LoggedUserId>,
     Query(params): Query<ViewSubspaceDeleteParams>,
-    RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
     // check the user login status
+    if logged_user_id.is_none() {
+        let action = format!("Not logged in");
+        let err_info = "Need login firstly to get proper permission.";
+        return redirect_to_error_page(&action, err_info).into_response();
+    }
 
-    // We must specify the id, We can do it in the params type definition
-    let id = params.id;
-    let title = params.title;
-
-    let query = format!("id={}", id);
-    let res_bytes = make_get(client, "/v1/article/list_by_subspace_id", Some(query)).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-    if posts.is_empty() {
-        // can be deleted
-        HtmlTemplate(SubspaceDeleteTemplate { id, title })
+    let inner_params = [("id", &params.id)];
+    let subspaces: Vec<GutpSubspace> = make_get("/v1/subspace", &inner_params)
+        .await
+        .unwrap_or(vec![]);
+    if let Some(sp) = subspaces.into_iter().next() {
+        let inner_params = [("subspace_id", &sp.id)];
+        let posts: Vec<GutpPost> = make_get("/v1/post/list_by_subspace_id", &inner_params)
+            .await
+            .unwrap_or(vec![]);
+        if posts.is_empty() {
+            // can be deleted
+            HtmlTemplate(SubspaceDeleteTemplate { subspace: sp }).into_response()
+        } else {
+            // error
+            let action = format!("Intend to delete subspace: {}", sp.id);
+            let err_info = "This subspace has article attached, could not be deleted!";
+            redirect_to_error_page(&action, err_info).into_response()
+        }
     } else {
-        // error
-        let action = format!("Intend to delete subspace: {}", id);
-        let err_info = "This subspace has article attached, could not be deleted!";
-        redirect_to_error_page(&action, err_info)
+        // redirect to the error page
+        let action = format!("Query subspace: {}", params.id);
+        let err_info = "No this subspace.";
+        redirect_to_error_page(&action, err_info).into_response()
     }
 }
 
@@ -155,35 +200,44 @@ struct PostSubspaceDeleteParams {
 }
 
 pub async fn post_subspace_delete(
-    State(client): State<Client>,
+    Extension(logged_user_id): Extension<LoggedUserId>,
     Form(params): Form<PostSubspaceDeleteParams>,
-    body: String,
-) -> Redirect {
+) -> impl IntoResponse {
     // check the user login status
+    if logged_user_id.is_none() {
+        let action = format!("Not logged in");
+        let err_info = "Need login firstly to get proper permission.";
+        return redirect_to_error_page(&action, err_info);
+    }
 
-    // check the user's permission to delete a subspace
+    let inner_params = [("id", &params.id)];
+    let subspaces: Vec<GutpSubspace> = make_get("/v1/subspace", &inner_params)
+        .await
+        .unwrap_or(vec![]);
+    if let Some(sp) = subspaces.into_iter().next() {
+        let inner_params = [("subspace_id", &sp.id)];
+        let posts: Vec<GutpPost> = make_get("/v1/post/list_by_subspace", &inner_params)
+            .await
+            .unwrap_or(vec![]);
+        if posts.is_empty() {
+            // can be deleted
+            let inner_params = [("id", &sp.id)];
+            let _sps: Vec<GutpSubspace> = make_post("/v1/subspace/delete", &inner_params)
+                .await
+                .unwrap_or(vec![]);
 
-    // We must precheck the id, we can do it in the params type definition
-    let id = params.id;
-
-    let query = format!("subspace_id={}", id);
-    let res_bytes = make_get(client, "/v1/article/list_by_subspace_id", Some(query)).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-    if posts.is_empty() {
-        // can be deleted
-        let res_bytes = make_post(client, "/v1/subspace/delete", body).await;
-        let _sps: Vec<GutpSubspace> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-        // TODO: process the error branch of deleting
-
-        // TODO: redirect to an article list page with a tag
-        // redirect to index page
-        let redirect_uri = format!("/");
-        Redirect::to(&redirect_uri)
+            // redirect to index page
+            Redirect::to("/")
+        } else {
+            // error
+            let action = format!("Intend to delete subspace: {}", sp.id);
+            let err_info = "This subspace has article attached, could not be deleted!";
+            redirect_to_error_page(&action, err_info)
+        }
     } else {
-        // error
-        let action = format!("Intend to delete subspace: {}", id);
-        let err_info = "This subspace has article attached, could not be deleted!";
+        // redirect to the error page
+        let action = format!("Query subspace: {}", params.id);
+        let err_info = "No this subspace.";
         redirect_to_error_page(&action, err_info)
     }
 }

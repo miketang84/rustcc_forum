@@ -2,13 +2,113 @@ use askama::Template;
 use axum::{
     extract::{Form, Query, RawQuery, State},
     response::{Html, IntoResponse, Redirect},
+    Extension,
 };
-use gutp_types::{GutpComment, GutpPost, GutpSubspace};
+use gutp_types::{GutpComment, GutpPost, GutpSubspace, GutpUser};
+use serde::{Deserialize, Serialize};
 
 use crate::redirect_to_error_page;
 use crate::AppState;
 use crate::HtmlTemplate;
 use crate::{make_get, make_post};
+
+#[derive(Template)]
+#[template(path = "article.html")]
+struct ArticleTemplate {
+    post: GutpPost,
+    comments: Vec<GutpComment>,
+    subspace: GutpSubspace,
+    author: GutpUser,
+    logged_user_id: Option<String>,
+}
+
+struct ViewArticleParams {
+    id: String,
+}
+
+pub async fn view_article(
+    State(app_state): State<AppState>,
+    Query(params): Query<ViewArticleParams>,
+    RawQuery(query): RawQuery,
+    Extension(logged_user_id): Extension<Option<String>>,
+) -> impl IntoResponse {
+    // check the user login status
+
+    // We must specify the subspace_id
+    let id = params.id;
+
+    // #[derive(Serialize)]
+    // struct QueryMaker00 {
+    //     id: String,
+    // }
+
+    // let query_params = QueryMaker00 {
+    //     id: params.id.to_owned(),
+    // };
+
+    // or use this for simple case
+    let query_params = [("id", params.id)];
+    let posts: Vec<GutpPost> = make_get("/v1/post", &query_params).await.unwrap_or(vec![]);
+    if let Some(post) = posts.into_iter().next() {
+        // continue to query comments
+        let query_params = [("post_id", post.id)];
+        let comments: Vec<GutpComment> = make_get("/v1/comment/list_by_post_id", &query_params)
+            .await
+            .unwrap_or(vec![]);
+
+        // TODO: query tags of this article
+        // this is a N:M relationship, so it's relatively complex
+        // let query_params = [("post_id", post.id)];
+        // let post_tags: Vec<GutpPostTag> = make_get("/v1/posttag/list_by_post_id", &query_params)
+        //     .await
+        //     .unwrap_or(vec![]);
+
+        // query coresponding subspace of this article
+        let query_params = [("id", post.subspace_id)];
+        let sps: Vec<GutpSubspace> = make_get("/v1/subspace", &query_params)
+            .await
+            .unwrap_or(vec![]);
+        // because subspace isn't the care factor, if it's invalid, just git it a default value
+        let subspace = if sps.is_empty() {
+            Default::default()
+        } else {
+            sps[0].to_owned()
+        };
+
+        // query coresponding author of this article
+        let query_params = [("id", post.author_id)];
+        let authors: Vec<GutpUser> = make_get("/v1/user", &query_params).await.unwrap_or(vec![]);
+        // because author isn't the care factor, if it's invalid, just git it a default value
+        let author = if authors.is_empty() {
+            Default::default()
+        } else {
+            authors[0].to_owned()
+        };
+
+        // if user logged in, add it
+        // let query_params = [("id", logged_user_id)];
+        // let users: Vec<GutpUser> = make_get("/v1/user", &query_params).await.unwrap_or(vec![]);
+        // // because author isn't the care factor, if it's invalid, just git it a default value
+        // let user = if users.is_empty() {
+        //     None
+        // } else {
+        //     Some(users[0].to_owned())
+        // };
+
+        // render the page
+        HtmlTemplate(ArticleTemplate {
+            post,
+            comments,
+            subspace,
+            author,
+            logged_user_id,
+        })
+    } else {
+        let action = format!("Query article: {}", params.id);
+        let err_info = "Article doesn't exist!";
+        redirect_to_error_page(&action, err_info)
+    }
+}
 
 #[derive(Template)]
 #[template(path = "article_create.html")]

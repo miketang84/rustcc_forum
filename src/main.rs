@@ -2,38 +2,37 @@
 use askama::Template;
 use axum::{
     extract::{Query, RawQuery, State},
-    http::{response, uri::Uri, Request, Response as HyperResponse},
+    http::{response, uri::Uri, Request, StatusCode},
     middleware::{self, Next},
     response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Router,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
+use serde::Serializer;
 use std::net::SocketAddr;
 use std::sync::Arc;
 // use tower_http::services::{ServeDir, ServeFile};
-
-use hyper::{
-    client::HttpConnector, Body, Client as RawHyperClient, Method, Request as HyperRequest,
-};
-pub type HyperClient = hyper::client::Client<HttpConnector, Body>;
+use redis::AsyncCommands;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod article;
 mod comment;
 mod index;
-mod tag;
+mod subspace;
 mod user;
 
-#[derive(Clone)]
 pub struct AppStateInner {
-    hclient: HyperClient,
+    // hclient: reqwest::Client,
     rclient: redis::Client,
-    redis_conn: redis::aio::Connection,
 }
 
 pub type AppState = Arc<AppStateInner>;
 
-pub type UserId = Option<String>;
+pub type LoggedUserId = Option<String>;
+
+pub const APPPROFESSION: &str = "it";
+pub const APPID: &str = "meblog";
 
 // The customized middleware
 async fn top_middleware<B>(
@@ -47,10 +46,12 @@ async fn top_middleware<B>(
 ) -> Response {
     // do something with `request`...
     if let Some(session_id) = cookie_jar.get("meblog_sid") {
+        let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
         // check this session id with redis
-        let redis_conn = app_state.redis_conn;
         let key = format!("meblog_session:{}", session_id);
-        if let Ok(user_id) = redis_conn.get(&key).await {
+
+        let result: Result<String, redis::RedisError> = redis_conn.get(&key).await;
+        if let Ok(user_id) = result {
             // insert this user_id to request extension
             req.extensions_mut().insert(Some(user_id));
         } else {
@@ -69,20 +70,21 @@ async fn top_middleware<B>(
 
 #[tokio::main]
 async fn main() {
-    let hyper_client = HyperClient::new();
+    // let http_client = reqwest::Client::new();
     let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
-    let mut redis_conn = redis_client.get_async_connection().await?;
 
     let app_state: AppState = Arc::new(AppStateInner {
-        hclient: hyper_client,
+        // hclient: http_client,
         rclient: redis_client,
-        redis_conn,
     });
 
     let app = Router::new()
-        .route("/", get(index::index))
+        .route("/", get(index::view_index))
         .route("/subspace", get(handler))
-        .route("/subspace/create", get(handler).post(handler))
+        .route(
+            "/subspace/create",
+            get(subspace::view_subspace_create).post(subspace::post_subspace_create),
+        )
         .route("/subspace/edit", get(handler).post(handler))
         .route("/article", get(article::article))
         .route("/article/list", get(article::latest_articles))
@@ -122,61 +124,49 @@ async fn main() {
         .unwrap();
 }
 
-async fn handler(State(client): State<AppState>, mut req: Request<Body>) -> Response<Body> {
-    let path = req.uri().path();
-    let path_query = req
-        .uri()
-        .path_and_query()
-        .map(|v| v.as_str())
-        .unwrap_or(path);
-
-    let uri = format!("http://127.0.0.1:3000{}", path_query);
-
-    *req.uri_mut() = Uri::try_from(uri).unwrap();
-
-    client.request(req).await.unwrap()
-}
-
 /// helper function
-pub async fn make_get(
-    client: Client,
+// call it like:  make_get::<GutpPost>(...)
+// or: let avec: Vec<GutpPost> = make_get(...)
+pub async fn make_get<T: DeserializeOwned, U: Serialize + ?Sized>(
     path: &str,
-    query: Option<String>,
-) -> anyhow::Result<hyper::body::Bytes> {
-    let uri = if let Some(query) = query {
-        format!("http://127.0.0.1:3000{}?{}", path, query)
-    } else {
-        format!("http://127.0.0.1:3000{}", path)
-    };
+    query_param: &U,
+) -> anyhow::Result<Vec<T>> {
+    let host = "http://127.0.0.1:3000";
+    let url = format!("{}{}", host, path);
 
-    let req = HyperRequest::builder()
-        .method(Method::GET)
-        .uri(&uri)
-        .expect("request builder");
+    let client = reqwest::Client::new();
+    let list: Vec<T> = client
+        .get(&url)
+        .query(query_param)
+        .header("User-Agent", "gutp-discux")
+        .send()
+        .await?
+        .json() // convert the response to coresponding rust type
+        .await?;
 
-    let response = client.request(req).await.unwrap();
-    let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-    println!("body: {:?}", body_bytes);
-    Ok(body_bytes)
+    // println!("in make_get res: {:?}", list);
+    Ok(list)
 }
 
-pub async fn make_post(
-    client: Client,
+pub async fn make_post<T: DeserializeOwned, U: Serialize + ?Sized>(
     path: &str,
-    body: String,
-) -> anyhow::Result<hyper::body::Bytes> {
-    let uri = format!("http://127.0.0.1:3000{}", path);
+    form_param: &U,
+) -> anyhow::Result<Vec<T>> {
+    let host = "http://127.0.0.1:3000";
+    let url = format!("{}{}", host, path);
 
-    let req = HyperRequest::builder()
-        .method(Method::POST)
-        .uri(&uri)
-        .body(body)
-        .expect("request builder");
+    let client = reqwest::Client::new();
+    let list: Vec<T> = client
+        .post(&url)
+        .form(form_param)
+        .header("User-Agent", "gutp-discux")
+        .send()
+        .await?
+        .json() // convert the response to coresponding rust type
+        .await?;
 
-    let response = client.request(req).await.unwrap();
-    let body_bytes = hyper::body::to_bytes(response.into_body()).await?;
-    println!("body: {:?}", body_bytes);
-    Ok(body_bytes)
+    // println!("in make_get res: {:?}", list);
+    Ok(list)
 }
 
 /// Define the template handler

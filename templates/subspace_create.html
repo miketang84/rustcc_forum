@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"New Subspace"}} 
+{% endblock title %}
+
+{% block content %}
+<div class="body-content">
+	<h3>{{"New Subspace"}}</h3>
+  <br>
+  <form action="/subspace/create" method="post">
+    <input type="text" name="title" size="20" autofocus="autofocus" placeholder="Subspace title" id="title">
+    <br>
+		<input type="text" name="description" size="20" placeholder="Subspace description" id="description">
+    <br>
+		<input type="submit" id="submit" value="Submit"/>
+  </form>
+</div>
+{% endblock content %}

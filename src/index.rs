@@ -1,38 +1,32 @@
+use askama::Template;
+use axum::{
+    extract::{Form, Query, RawQuery, State},
+    response::{Html, IntoResponse, Redirect},
+    Extension,
+};
+use gutp_types::{GutpComment, GutpPost, GutpSubspace, GutpUser};
+use serde::{Deserialize, Serialize};
+
+use crate::AppState;
+use crate::HtmlTemplate;
+use crate::{make_get, make_post};
+use crate::{redirect_to_error_page, LoggedUserId};
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate {
-    tags: Vec<GutpTag>,
-    posts: Vec<GutpPost>,
-    replied_posts: Vec<GutpPost>,
-    extobjs: Vec<GutpExtobj>,
+    subspaces: Vec<GutpSubspace>,
 }
 
-pub async fn index(State(client): State<Client>, RawQuery(query): RawQuery) -> impl IntoResponse {
+pub async fn view_index(Extension(logged_user_id): Extension<LoggedUserId>) -> impl IntoResponse {
     // check the user login status
 
+    let query_params: &[(&str, &str)] = &[];
     // get subspace tags
-    let res_bytes = make_get(client, "/v1/tag/list_by_subspace", query).await;
-    let tags: Vec<GutpTag> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get the latest articles
-    let res_bytes = make_get(client, "/v1/post/list_by_subspace", query).await;
-    let posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get the latest replied articles
-    let res_bytes = make_get(client, "/v1/post/list_by_subspace_by_latest_replied", query).await;
-    let replied_posts: Vec<GutpPost> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
-
-    // get other extensive links (items)
-    let res_bytes = make_get(client, "/v1/extobj/list_by_subspace", query).await;
-    let extobjs: Vec<GutpExtobj> = serde_json::from_slice(res_bytes).unwrap_or(vec![]);
+    let subspaces: Vec<GutpSubspace> = make_get("/v1/subspace/list", query_params)
+        .await
+        .unwrap_or(vec![]);
 
     // render the page
-
-    let template = IndexTemplate {
-        tags,
-        posts,
-        replied_posts,
-        extobjs,
-    };
-    HtmlTemplate(template)
+    HtmlTemplate(IndexTemplate { subspaces })
 }

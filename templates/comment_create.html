@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"New Comment"}}
+{% endblock title %}
+
+{% block content %}
+
+<div class="body-content">
+	<h3>
+		{{"New Comment"}}
+	</h3>
+	<p class="new-reply"> {{"Reply to:"}}<br>
+		<span class="article-title">{{post.title}}</span>
+	</p>
+	<form class="" action="/comment/create" method="post">
+		<input type="hidden" name="post_id" value="{{post.id}}">
+		<textarea name="content" placeholder="{{"Contnet"}}" autofocus></textarea>
+		<br>
+		<input type="submit" value="{{"biu"}}"></input>
+	</form>
+</div>
+
+{% endblock content %}

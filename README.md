@@ -1,6 +1,6 @@
-# MeBlog
+# Discux
 
-MeBlog is a blog platform for users with the features of open-data and ownership.
+Discux is a general forum platform for users with the features of open-data and ownership.
 
 Technically, it is just a service entry for the GUTP backend.
 

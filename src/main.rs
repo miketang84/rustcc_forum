@@ -32,8 +32,7 @@ pub type AppState = Arc<AppStateInner>;
 pub type LoggedUserId = Option<String>;
 
 pub const APPPROFESSION: &str = "it";
-pub const APPID: &str = "meblog";
-pub const GITHUB_CLIENT_ID: &str = "xxxxx";
+pub const APPID: &str = "discux";
 
 // The customized middleware
 async fn top_middleware<B>(
@@ -46,10 +45,11 @@ async fn top_middleware<B>(
     next: Next<B>,
 ) -> Response {
     // do something with `request`...
-    if let Some(session_id) = cookie_jar.get("meblog_sid") {
+    let cookie_key = format!("{}_sid", &APPID);
+    if let Some(session_id) = cookie_jar.get(&cookie_key) {
         let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
         // check this session id with redis
-        let key = format!("meblog_session:{}", session_id);
+        let key = format!("{}_session:{}", &APPID, session_id);
 
         let result: Result<String, redis::RedisError> = redis_conn.get(&key).await;
         if let Ok(user_id) = result {

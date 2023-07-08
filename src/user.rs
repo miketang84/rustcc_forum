@@ -200,7 +200,8 @@ async fn login_user_with_account(conn: redis::aio::Connection, account: &str) ->
     // first, set session key in server cache
     let cookiestr = set_session(conn, account).await;
 
-    let cookie = Cookie::build("meblog_sid", &cookiestr)
+    let cookie_key = format!("{}_sid", &crate::APPID);
+    let cookie = Cookie::build(&cookie_key, &cookiestr)
         // .domain("/")
         .path("/")
         //.secure(true)
@@ -217,7 +218,7 @@ async fn login_user_with_account(conn: redis::aio::Connection, account: &str) ->
 pub async fn set_session(mut conn: redis::aio::Connection, account: &str) -> String {
     let x = rand::random::<[u8; 32]>();
     let cookie = sha256::digest(&x);
-    let cookie_key = format!("meblog_session:{}", cookie);
+    let cookie_key = format!("{}_session:{}", &crate::APPID, cookie);
     let _: Result<(), redis::RedisError> = conn.set(&cookie_key, account).await;
     let _: Result<(), redis::RedisError> = conn.expire(&cookie, TTL).await;
 
@@ -225,7 +226,7 @@ pub async fn set_session(mut conn: redis::aio::Connection, account: &str) -> Str
 }
 
 pub async fn clear_session(mut conn: redis::aio::Connection, session_id: &str) {
-    let session_key = format!("meblog_session:{}", session_id);
+    let session_key = format!("{}_session:{}", &crate::APPID, session_id);
     let _: Result<(), redis::RedisError> = conn.del(&session_key).await;
 }
 
@@ -241,10 +242,13 @@ pub async fn signout(
     }
 
     let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
-    if let Some(session_id) = cookie_jar.get("meblog_sid") {
+    let cookie_key = format!("{}_sid", &crate::APPID);
+    if let Some(session_id) = cookie_jar.get(&cookie_key) {
         clear_session(redis_conn, &session_id.to_string());
-        cookie_jar
-            .remove(Cookie::named("meblog_sid"))
+        (
+            cookie_jar.remove(Cookie::named(cookie_key)),
+            Redirect::to("/"),
+        )
             .into_response()
     } else {
         let redirect_uri = format!("/login");

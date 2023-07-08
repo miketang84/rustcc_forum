@@ -17,6 +17,7 @@ struct CommentCreateTemplate {
     post: GutpPost,
 }
 
+#[derive(Deserialize)]
 struct ViewCommentCreateParams {
     post_id: String,
 }
@@ -43,6 +44,7 @@ pub async fn view_comment_create(
     }
 }
 
+#[derive(Deserialize)]
 struct PostCommentCreateParams {
     post_id: String,
     content: String,
@@ -116,6 +118,7 @@ struct CommentDeleteTemplate {
     comment: GutpComment,
 }
 
+#[derive(Deserialize)]
 struct ViewCommentDeleteParams {
     id: String,
 }
@@ -144,6 +147,7 @@ pub async fn view_comment_delete(
     }
 }
 
+#[derive(Deserialize)]
 struct PostCommentDeleteParams {
     id: String,
     post_id: String,

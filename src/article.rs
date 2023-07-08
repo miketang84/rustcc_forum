@@ -22,6 +22,7 @@ struct ArticleTemplate {
     logged_user_id: Option<String>,
 }
 
+#[derive(Deserialize)]
 struct ViewArticleParams {
     id: String,
 }
@@ -111,6 +112,7 @@ struct ArticleCreateTemplate {
     subspace: GutpSubspace,
 }
 
+#[derive(Deserialize)]
 struct ViewArticleCreateParams {
     subspace_id: String,
 }
@@ -140,6 +142,7 @@ pub async fn view_article_create(
     }
 }
 
+#[derive(Deserialize)]
 struct PostArticleCreateParams {
     subspace_id: String,
     title: String,
@@ -203,6 +206,7 @@ struct ArticleEditTemplate {
     // subspace: GutpSubspace,
 }
 
+#[derive(Deserialize)]
 struct ViewArticleEditParams {
     id: String,
 }
@@ -230,6 +234,7 @@ pub async fn view_article_edit(
     }
 }
 
+#[derive(Deserialize)]
 struct PostArticleEditParams {
     id: String,
     title: String,
@@ -288,6 +293,7 @@ struct ArticleDeleteTemplate {
     post: GutpPost,
 }
 
+#[derive(Deserialize)]
 struct ViewArticleDeleteParams {
     id: String,
 }
@@ -328,6 +334,7 @@ pub async fn view_article_delete(
     }
 }
 
+#[derive(Deserialize)]
 struct PostArticleDeleteParams {
     id: String,
     subspace_id: String,

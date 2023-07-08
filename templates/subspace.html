@@ -1,69 +1,43 @@
 {% extends "base.html" %}
 
 {% block title %}
-{{"title"}}-{{"index"}}
+{{ subspace.title }}
 {% endblock title %}
 
 {% block content %}
 <div class="body-content">
-  <div class="action_area">
-	  <a class="right new-subspace" href="/subspace/create">{{"New Subspace"}}</a>
-		<div style="clear:both;"></div>
-  </div>
-
-    <div class="article-list-section">
-	<div class="article-list-head head">
-		<span><a href="/latest_articles_paging">{{"latest_articles"}}</a></span>
-	</div>
-	{% if articles | length  == 0 %}
-	<p>{{"no_content"}}</p>
-	{% else %}
-	<div class="article-list-container container article-list">
-	    <ul>
-	    {% for article in articles %}
-		<li>
-		    <a href="/article?id={{ article.id }}" class="title">
-			{{ article.title }} -
-			{{article.section_title}}
-		    </a>
-		    <span class="right">
-			<span class="author">{{ article.author_name }}</span>
-			<span class="timestamp ">{{article.created_time}}</span>
-		    </span>
-		</li>
-	    {% endfor %}
-	    </ul>
-	</div>
-	{% endif %}
-	<div style="clear:both;"></div>
+    <div class="detail-head">
+        <div>
+            <h3>{{ subspace.title }}</h3>
+        	  <a class="right new-article" href="/article/create?subspace_id={{subspace.id}}">{{"Post Article"}}</a>
+        </div>
+        <p>
+            <small>{{ subspace.description }}</small>
+        </p>
     </div>
 
-    <div class="article-list-section">
-	<div class="article-list-head head">
-		<span><a href="/latest_reply_articles_paging">{{"latest_reply_articles"}}</a></span>
-	</div>
-	{% if reply_articles | length  == 0 %}
-	<p>{{"no_content"}}</p>
-	{% else %}
-	<div class="article-list-container container article-list">
-	    <ul>
-	    {% for article in reply_articles %}
-		<li>
-		    <a href="/article?id={{ article.id }}" class="title">
-			{{ article.title }} -
-			{{article.section_title}}
-		    </a>
-		    <span class="right">
-			<span class="author">{{ article.author_name }}</span>
-			<span class="timestamp ">{{article.created_time}}</span>
-		    </span>
-		</li>
-	    {% endfor %}
-	    </ul>
-	</div>
-	{% endif %}
-	<div style="clear:both;"></div>
+    <div class="section-body article-list">
+        {% if posts.is_empty() %}
+	    <p class="">{{"No Content"}}</p>
+        {% else %}
+        <ul>
+            {% for post in posts %}
+            <li>
+                <span class="left">
+                    <a href="/article?id={{ post.id }}" class="title left">{{ post.title }}</a>
+                    <div style="clear:both;"></div>
+                </span>
+                <span class="right info">
+                    <span class="author">{{ post.author_nickname }}</span> 
+                    <span class="timestamp">{{ post.created_time }}</span>
+                    <a class="delete" href="/article/delete?id={{post.id}}">{{"Delete"}}</a>
+                    <a class="edit" href="/article/edit?id={{post.id}}">{{"Edit"}}</a>
+                </span>
+                <div style="clear:both;"></div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
     </div>
-
-/div>
+</div>
 {% endblock content %}

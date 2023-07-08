@@ -33,6 +33,7 @@ pub type LoggedUserId = Option<String>;
 
 pub const APPPROFESSION: &str = "it";
 pub const APPID: &str = "meblog";
+pub const GITHUB_CLIENT_ID: &str = "xxxxx";
 
 // The customized middleware
 async fn top_middleware<B>(
@@ -70,6 +71,8 @@ async fn top_middleware<B>(
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
+
     // let http_client = reqwest::Client::new();
     let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
 
@@ -80,35 +83,39 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(index::view_index))
-        .route("/subspace", get(handler))
+        .route("/subspace", get(subspace::view_subspace))
         .route(
             "/subspace/create",
             get(subspace::view_subspace_create).post(subspace::post_subspace_create),
         )
-        .route("/subspace/edit", get(handler).post(handler))
-        .route("/article", get(article::article))
-        .route("/article/list", get(article::latest_articles))
-        .route("/article/list_replied", get(handler))
-        .route("/article/list_by_tag", get(handler))
-        .route("/article/list_replied_by_tag", get(handler))
-        .route("/article/create", get(handler).post(handler))
-        .route("/article/edit", get(handler).post(handler))
-        .route("/article/delete", get(handler).post(handler))
-        .route("/comment/create", get(handler).post(handler))
-        .route("/comment/edit", get(handler).post(handler))
-        .route("/comment/delete", get(handler).post(handler))
-        .route("/tag/create", get(handler).post(handler))
-        .route("/tag/edit", get(handler).post(handler))
-        .route("/tag/delete", get(handler).post(handler))
-        // .route("/manage/my_articles", get(handler))
-        // .route("/manage/my_tags", get(handler))
-        // .route("/manage/pubprofile", get(handler).post(handler))
-        .route("/user/account", get(handler))
-        .route("/user/signout", get(handler))
-        .route("/user/register", post(handler))
-        .route("/user/login", post(handler))
-        .route("/user/login_with3rd", get(handler))
-        .route("/user/login_with_github", get(handler))
+        .route(
+            "/subspace/delete",
+            get(subspace::view_subspace_delete).post(subspace::post_subspace_delete),
+        )
+        .route("/article", get(article::view_article))
+        .route(
+            "/article/create",
+            get(article::view_article_create).post(article::post_article_create),
+        )
+        .route(
+            "/article/edit",
+            get(article::view_article_edit).post(article::post_article_edit),
+        )
+        .route(
+            "/article/delete",
+            get(article::view_article_delete).post(article::post_article_delete),
+        )
+        .route(
+            "/comment/create",
+            get(comment::view_comment_create).post(comment::post_comment_create),
+        )
+        .route(
+            "/comment/delete",
+            get(comment::view_comment_delete).post(comment::post_comment_delete),
+        )
+        .route("/user/account", get(user::view_account))
+        .route("/user/signout", get(user::signout))
+        .route("/user/login", post(user::view_login))
         .route("/error/info", get(view_error_info))
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
@@ -188,14 +195,14 @@ where
     }
 }
 
-#[derive(Template)]
+#[derive(Template, Deserialize)]
 #[template(path = "action_error.html")]
 struct ErrorInfoTemplate {
     action: String,
     err_info: String,
 }
 
-pub async fn view_error_info(Query(params): Query<ErrorInfoTemplate>) -> impl IntoResponse {
+async fn view_error_info(Query(params): Query<ErrorInfoTemplate>) -> impl IntoResponse {
     // render the page
     HtmlTemplate(ErrorInfoTemplate {
         action: params.action,

@@ -13,15 +13,53 @@ use crate::LoggedUserId;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
+#[template(path = "subspace.html")]
+struct SubspaceTemplate {
+    subspace: GutpSubspace,
+    posts: Vec<GutpPost>,
+}
+
+#[derive(Deserialize)]
+struct ViewSubspaceParams {
+    id: String,
+}
+
+pub async fn view_subspace(
+    Extension(logged_user_id): Extension<LoggedUserId>,
+    Query(params): Query<ViewSubspaceParams>,
+) -> impl IntoResponse {
+    let inner_params = [("id", &params.id)];
+    let subspaces: Vec<GutpSubspace> = make_get("/v1/subspace", &inner_params)
+        .await
+        .unwrap_or(vec![]);
+    if let Some(sp) = subspaces.into_iter().next() {
+        let inner_params = [("subspace_id", &sp.id)];
+        let posts: Vec<GutpPost> = make_get("/v1/post/list_by_subspace_id", &inner_params)
+            .await
+            .unwrap_or(vec![]);
+        HtmlTemplate(SubspaceTemplate {
+            subspace: sp,
+            posts,
+        })
+        .into_response()
+    } else {
+        // redirect to the error page
+        let action = format!("Query subspace: {}", params.id);
+        let err_info = "No this subspace.";
+        redirect_to_error_page(&action, err_info).into_response()
+    }
+}
+
+#[derive(Template)]
 #[template(path = "subspace_create.html")]
 struct SubspaceCreateTemplate {}
 
+#[derive(Deserialize)]
 struct ViewSubspaceCreateParams {}
 
 pub async fn view_subspace_create(
-    Query(params): Query<ViewSubspaceCreateParams>,
-    RawQuery(query): RawQuery,
     Extension(logged_user_id): Extension<LoggedUserId>,
+    Query(params): Query<ViewSubspaceCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
     // TODO: who can create a new subspace?
@@ -36,6 +74,7 @@ pub async fn view_subspace_create(
     HtmlTemplate(SubspaceCreateTemplate {}).into_response()
 }
 
+#[derive(Deserialize)]
 struct PostSubspaceCreateParams {
     title: String,
     description: String,
@@ -154,6 +193,7 @@ struct SubspaceDeleteTemplate {
     subspace: GutpSubspace,
 }
 
+#[derive(Deserialize)]
 struct ViewSubspaceDeleteParams {
     id: String,
 }
@@ -195,6 +235,7 @@ pub async fn view_subspace_delete(
     }
 }
 
+#[derive(Deserialize)]
 struct PostSubspaceDeleteParams {
     id: String,
 }

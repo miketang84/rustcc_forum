@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"New Article"}}
+{% endblock title %}
+
+{% block content %}
+<div class="body-content">
+    <h3>
+	    {{"New Article"}} 
+    </h3>
+    <form class="" action="/article/create" method="post">
+        <input type="hidden" name="subspace_id" value="{{subspace.id}}">
+        <input type="text" name="title" placeholder="{{"Article Title"}}">
+        <br> 
+	      <textarea name="content" placeholder="{{"Article Content"}}" autofocus></textarea>
+        <br> 
+        <input type="text" name="extlink" placeholder="{{"Extent Link"}}">
+        <br> 
+        <input type="submit" value="{{"biu"}}">
+    </form>
+</div>
+{% endblock content %}

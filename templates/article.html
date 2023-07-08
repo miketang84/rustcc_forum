@@ -16,7 +16,7 @@
 		    <h2><a href="/article?id={{post.id}}">{{ post.title }}</a></h2>
 		</div>
 		<p class="vice-title">
-		    <a href="/blog_with_author?author_id={{ author.id }}">{{ author.nickname }}</a>
+		    {{ author.nickname }} 
 
 		    {{"Posted at: "}} <span class="article_created_time">{{post.created_time }}</span>
 
@@ -27,10 +27,10 @@
   </div>
 
   <div class="detail-body">
-	{{ post.content | markdown }}
+	{{ post.content|markdown }}
   </div>
 
-  {% if article.extlink != "" %}
+  {% if post.extlink != "" %}
   <div class="extlink-part">
 		<iframe src="{{post.extlink}}"></iframe>
   </div>
@@ -63,7 +63,7 @@
 			    {% endif %}
 			</div>
 			<div class="comment-content">
-			    {{ comment.content | markdown }}
+			    {{ comment.content|markdown }}
 			</div>
     </div>
 	    {% endfor %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"Delete Article"}} 
+{% endblock title %}
+
+{% block content %}
+<div class="body-content">
+    <h3>
+{{"Delete Article"}} 
+    </h3>
+    <p class="new-reply">{{"Are you sure to delete this article?"}}
+        <br>
+        <span><b>{{post.title}}</b></span>
+    </p>
+
+    <form class="delete_form" action="/article/delete" method="post">
+        <input type="hidden" name="id" value="{{post.id}}">
+        <input type="hidden" name="subspace_id" value="{{post.subspace_id}}">
+        <br> 
+        <input type="submit" value="{{"Sure"}}"> &nbsp; 
+        <a href="#" onclick="window.history.back();">{{"Cancel"}}</a>
+    </form>
+</div>
+{% endblock content %}

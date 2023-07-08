@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{"Edit Article"}}
+{% endblock title %}
+
+{% block content %}
+<div class="body-content">
+    <h3>
+    {{"Edit Article"}}
+    </h3>
+    <form class="" action="/article/edit" method="post">
+        <input type="hidden" name="id" value="{{post.id}}">
+	      <input class="input" type="text" name="title" placeholder="{{"Article Title"}}" value="{{post.title}}">
+        <br> 
+	      <textarea name="content" placeholder="{{"Article Content"}}" autofocus>{{post.content}}</textarea>
+        <br> 
+	      <input class="input" type="text" name="extlink" placeholder="{{"Extent Link"}}" value="{{post.extlink}}">
+        <br> 
+	      <input type="submit" value="{{"biu"}}">
+    </form>
+</div>
+{% endblock content %}

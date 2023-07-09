@@ -20,7 +20,7 @@ struct SubspaceTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewSubspaceParams {
+pub struct ViewSubspaceParams {
     id: String,
 }
 
@@ -55,7 +55,7 @@ pub async fn view_subspace(
 struct SubspaceCreateTemplate {}
 
 #[derive(Deserialize)]
-struct ViewSubspaceCreateParams {}
+pub struct ViewSubspaceCreateParams {}
 
 pub async fn view_subspace_create(
     Extension(logged_user_id): Extension<LoggedUserId>,
@@ -75,7 +75,7 @@ pub async fn view_subspace_create(
 }
 
 #[derive(Deserialize)]
-struct PostSubspaceCreateParams {
+pub struct PostSubspaceCreateParams {
     title: String,
     description: String,
 }
@@ -194,7 +194,7 @@ struct SubspaceDeleteTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewSubspaceDeleteParams {
+pub struct ViewSubspaceDeleteParams {
     id: String,
 }
 
@@ -236,7 +236,7 @@ pub async fn view_subspace_delete(
 }
 
 #[derive(Deserialize)]
-struct PostSubspaceDeleteParams {
+pub struct PostSubspaceDeleteParams {
     id: String,
 }
 

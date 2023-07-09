@@ -27,7 +27,7 @@
   </div>
 
   <div class="detail-body">
-	{{ post.content|markdown }}
+	{{ post.content.clone()|markdown }}
   </div>
 
   {% if post.extlink != "" %}
@@ -63,7 +63,7 @@
 			    {% endif %}
 			</div>
 			<div class="comment-content">
-			    {{ comment.content|markdown }}
+			    {{ comment.content.clone()|markdown }}
 			</div>
     </div>
 	    {% endfor %}

@@ -56,20 +56,19 @@ pub async fn view_account(Extension(logged_user_id): Extension<LoggedUserId>) ->
         }
     } else {
         // if not logged in, redirect to login page
-        let redirect_uri = format!("/login");
+        let redirect_uri = format!("/user/login");
         Redirect::to(&redirect_uri).into_response()
     }
 }
 
 #[derive(Deserialize)]
-struct GithubOauthCallbackParams {
+pub struct GithubOauthCallbackParams {
     code: String,
 }
 
-pub async fn login_with_github_callback(
+pub async fn github_oauth_callback(
     State(app_state): State<AppState>,
     Query(params): Query<GithubOauthCallbackParams>,
-    RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
     let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
     // returned from github
@@ -110,7 +109,7 @@ pub async fn login_with_github_callback(
                 let inner_params = InnerUserCreateParams {
                     account: github_user_info.account.to_owned(),
                     oauth_source: "github".to_owned(),
-                    nickname: github_user_info.nickname.to_owned(),
+                    nickname: github_user_info.account.to_owned(),
                     avatar: "".to_owned(),
                     pub_settings: "".to_owned(),
                     ext: "".to_owned(),
@@ -162,13 +161,15 @@ async fn get_github_token(
     ];
 
     let client = reqwest::Client::new();
-    let res: GithubCredentials = client
+    let res = client
         .post("https://github.com/login/oauth/access_token")
         .form(&params)
         .send()
-        .await?
-        .json()
         .await?;
+
+    println!("in get_github_token, {:?}", res);
+
+    let res: GithubCredentials = res.json().await?;
 
     Ok(res)
 }
@@ -176,22 +177,23 @@ async fn get_github_token(
 #[derive(Deserialize)]
 struct GithubUserInfo {
     account: String,
-    nickname: String,
-    address: String,
+    // nickname: String,
 }
 
 async fn get_github_user_info(access_token: &str) -> Result<GithubUserInfo, reqwest::Error> {
     let params = [("access_token", access_token)];
 
     let client = reqwest::Client::new();
-    let user_info: GithubUserInfo = client
+    let res = client
         .get("https://api.github.com/user")
         .query(&params)
         .header("User-Agent", "gutp-discux")
         .send()
-        .await?
-        .json()
         .await?;
+
+    println!("in get_github_user_info, {:?}", res);
+
+    let user_info: GithubUserInfo = res.json().await?;
 
     Ok(user_info)
 }

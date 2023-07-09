@@ -23,7 +23,7 @@ struct ArticleTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewArticleParams {
+pub struct ViewArticleParams {
     id: String,
 }
 
@@ -113,7 +113,7 @@ struct ArticleCreateTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewArticleCreateParams {
+pub struct ViewArticleCreateParams {
     subspace_id: String,
 }
 
@@ -143,7 +143,7 @@ pub async fn view_article_create(
 }
 
 #[derive(Deserialize)]
-struct PostArticleCreateParams {
+pub struct PostArticleCreateParams {
     subspace_id: String,
     title: String,
     content: String,
@@ -207,7 +207,7 @@ struct ArticleEditTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewArticleEditParams {
+pub struct ViewArticleEditParams {
     id: String,
 }
 
@@ -235,7 +235,7 @@ pub async fn view_article_edit(
 }
 
 #[derive(Deserialize)]
-struct PostArticleEditParams {
+pub struct PostArticleEditParams {
     id: String,
     title: String,
     content: String,
@@ -294,7 +294,7 @@ struct ArticleDeleteTemplate {
 }
 
 #[derive(Deserialize)]
-struct ViewArticleDeleteParams {
+pub struct ViewArticleDeleteParams {
     id: String,
 }
 
@@ -335,7 +335,7 @@ pub async fn view_article_delete(
 }
 
 #[derive(Deserialize)]
-struct PostArticleDeleteParams {
+pub struct PostArticleDeleteParams {
     id: String,
     subspace_id: String,
 }

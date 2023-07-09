@@ -115,7 +115,11 @@ async fn main() {
         )
         .route("/user/account", get(user::view_account))
         .route("/user/signout", get(user::signout))
-        .route("/user/login", post(user::view_login))
+        .route("/user/login", get(user::view_login))
+        .route(
+            "/user/github_oauth_callback",
+            get(user::github_oauth_callback),
+        )
         .route("/error/info", get(view_error_info))
         .layer(middleware::from_fn_with_state(
             app_state.clone(),

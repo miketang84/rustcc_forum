@@ -434,6 +434,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "discux"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askama",
+ "axum",
+ "axum-extra",
+ "cookie",
+ "dotenv",
+ "gutp-types",
+ "hyper",
+ "rand",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha256",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -931,28 +953,6 @@ name = "matchit"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b87248edafb776e59e6ee64a79086f65890d3510f2c656c000bf2a7e8a0aea40"
-
-[[package]]
-name = "meblog"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "askama",
- "axum",
- "axum-extra",
- "cookie",
- "dotenv",
- "gutp-types",
- "hyper",
- "rand",
- "redis",
- "reqwest",
- "serde",
- "serde_json",
- "sha256",
- "tokio",
- "tower-http",
-]
 
 [[package]]
 name = "memchr"

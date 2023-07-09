@@ -12,6 +12,10 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Serializer;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 // use tower_http::services::{ServeDir, ServeFile};
 use redis::AsyncCommands;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -29,7 +33,10 @@ pub struct AppStateInner {
 
 pub type AppState = Arc<AppStateInner>;
 
-pub type LoggedUserId = Option<String>;
+#[derive(Debug, Clone)]
+pub struct LoggedUser {
+    user_id: String,
+}
 
 pub const APPPROFESSION: &str = "it";
 pub const APPID: &str = "discux";
@@ -54,7 +61,7 @@ async fn top_middleware<B>(
         let result: Result<String, redis::RedisError> = redis_conn.get(&key).await;
         if let Ok(user_id) = result {
             // insert this user_id to request extension
-            req.extensions_mut().insert(Some(user_id));
+            req.extensions_mut().insert(LoggedUser { user_id });
         } else {
             // no this session, do nothing
         }
@@ -125,6 +132,7 @@ async fn main() {
             app_state.clone(),
             top_middleware,
         ))
+        .nest_service("/assets", ServeDir::new("assets"))
         .with_state(app_state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3333));

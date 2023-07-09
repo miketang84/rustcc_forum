@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::redirect_to_error_page;
 use crate::HtmlTemplate;
-use crate::LoggedUserId;
+use crate::LoggedUser;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
@@ -25,7 +25,7 @@ pub struct ViewSubspaceParams {
 }
 
 pub async fn view_subspace(
-    Extension(logged_user_id): Extension<LoggedUserId>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewSubspaceParams>,
 ) -> impl IntoResponse {
     let inner_params = [("id", &params.id)];
@@ -58,14 +58,14 @@ struct SubspaceCreateTemplate {}
 pub struct ViewSubspaceCreateParams {}
 
 pub async fn view_subspace_create(
-    Extension(logged_user_id): Extension<LoggedUserId>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewSubspaceCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
     // TODO: who can create a new subspace?
     // For forum case, only admin has the permission to create a new subspace
     // for blog case, every on can create their own blog subspace
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -81,15 +81,16 @@ pub struct PostSubspaceCreateParams {
 }
 
 pub async fn post_subspace_create(
-    Extension(logged_user_id): Extension<LoggedUserId>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostSubspaceCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);
     }
+    let Extension(LoggedUser { user_id }) = logged_user.unwrap();
 
     #[derive(Serialize)]
     struct InnerSubspaceCreateParams {
@@ -106,7 +107,7 @@ pub async fn post_subspace_create(
         title: params.title,
         description: params.description,
         banner: "".to_string(),
-        owner_id: logged_user_id.clone().unwrap(),
+        owner_id: user_id,
         profession: crate::APPPROFESSION.to_string(),
         appid: crate::APPID.to_string(),
         is_public: true,
@@ -199,11 +200,11 @@ pub struct ViewSubspaceDeleteParams {
 }
 
 pub async fn view_subspace_delete(
-    Extension(logged_user_id): Extension<LoggedUserId>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewSubspaceDeleteParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -241,11 +242,11 @@ pub struct PostSubspaceDeleteParams {
 }
 
 pub async fn post_subspace_delete(
-    Extension(logged_user_id): Extension<LoggedUserId>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostSubspaceDeleteParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);

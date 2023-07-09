@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use crate::HtmlTemplate;
 use crate::{make_get, make_post};
-use crate::{redirect_to_error_page, LoggedUserId};
+use crate::{redirect_to_error_page, LoggedUser};
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -18,8 +18,13 @@ struct IndexTemplate {
     subspaces: Vec<GutpSubspace>,
 }
 
-pub async fn view_index(Extension(logged_user_id): Extension<LoggedUserId>) -> impl IntoResponse {
+pub async fn view_index(logged_user: Option<Extension<LoggedUser>>) -> impl IntoResponse {
     // check the user login status
+    if let Some(Extension(logged_user)) = logged_user {
+        println!("user: {:?}", logged_user);
+    } else {
+        println!("no user: {:?}", logged_user);
+    }
 
     let query_params: &[(&str, &str)] = &[];
     // get subspace tags

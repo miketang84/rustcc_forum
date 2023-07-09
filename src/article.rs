@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::redirect_to_error_page;
 use crate::AppState;
 use crate::HtmlTemplate;
+use crate::LoggedUser;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
@@ -28,10 +29,15 @@ pub struct ViewArticleParams {
 }
 
 pub async fn view_article(
-    State(app_state): State<AppState>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewArticleParams>,
-    Extension(logged_user_id): Extension<Option<String>>,
 ) -> impl IntoResponse {
+    let logged_user_id = if let Some(Extension(LoggedUser { user_id })) = logged_user {
+        Some(user_id)
+    } else {
+        None
+    };
+
     // #[derive(Serialize)]
     // struct QueryMaker00 {
     //     id: String,
@@ -118,11 +124,11 @@ pub struct ViewArticleCreateParams {
 }
 
 pub async fn view_article_create(
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewArticleCreateParams>,
-    Extension(logged_user_id): Extension<Option<String>>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -151,15 +157,16 @@ pub struct PostArticleCreateParams {
 }
 
 pub async fn post_article_create(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostArticleCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
     }
+    let Extension(LoggedUser { user_id }) = logged_user.unwrap();
 
     #[derive(Serialize)]
     struct InnerArticleCreateParams {
@@ -176,7 +183,7 @@ pub async fn post_article_create(
     let inner_params = InnerArticleCreateParams {
         title: params.title,
         content: params.content,
-        author_id: logged_user_id.clone().unwrap(),
+        author_id: user_id,
         subspace_id: params.subspace_id.to_owned(),
         extlink: params.extlink,
         profession: crate::APPPROFESSION.to_string(),
@@ -212,11 +219,11 @@ pub struct ViewArticleEditParams {
 }
 
 pub async fn view_article_edit(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewArticleEditParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -243,15 +250,16 @@ pub struct PostArticleEditParams {
 }
 
 pub async fn post_article_edit(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostArticleEditParams>,
 ) -> Redirect {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);
     }
+    let Extension(LoggedUser { user_id }) = logged_user.unwrap();
 
     #[derive(Serialize)]
     struct InnerArticleEditParams {
@@ -267,7 +275,7 @@ pub async fn post_article_edit(
         id: params.id.to_owned(),
         title: params.title,
         content: params.content,
-        author_id: logged_user_id.clone().unwrap(),
+        author_id: user_id,
         extlink: params.extlink,
         is_public: true,
     };
@@ -299,11 +307,11 @@ pub struct ViewArticleDeleteParams {
 }
 
 pub async fn view_article_delete(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewArticleDeleteParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -341,11 +349,11 @@ pub struct PostArticleDeleteParams {
 }
 
 pub async fn post_article_delete(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostArticleDeleteParams>,
 ) -> Redirect {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::redirect_to_error_page;
 use crate::HtmlTemplate;
+use crate::LoggedUser;
 use crate::{make_get, make_post};
 
 #[derive(Template)]
@@ -23,11 +24,11 @@ pub struct ViewCommentCreateParams {
 }
 
 pub async fn view_comment_create(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewCommentCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -51,21 +52,22 @@ pub struct PostCommentCreateParams {
 }
 
 pub async fn post_comment_create(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostCommentCreateParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);
     }
+    let Extension(LoggedUser { user_id }) = logged_user.unwrap();
 
     let inner_params = [("id", &params.post_id)];
     let posts: Vec<GutpPost> = make_get("/v1/post", &inner_params).await.unwrap_or(vec![]);
     if let Some(post) = posts.into_iter().next() {
         // retreive author info
-        let inner_params = [("id", &logged_user_id.clone().unwrap())];
+        let inner_params = [("id", &user_id)];
         let authors: Vec<GutpUser> = make_get("/v1/user", &inner_params).await.unwrap_or(vec![]);
         if let Some(author) = authors.into_iter().next() {
             #[derive(Serialize)]
@@ -101,7 +103,7 @@ pub async fn post_comment_create(
                 redirect_to_error_page(&action, err_info)
             }
         } else {
-            let action = format!("Query author: {}", &logged_user_id.clone().unwrap());
+            let action = format!("Query author: {}", &user_id);
             let err_info = "Unknown";
             redirect_to_error_page(&action, err_info)
         }
@@ -124,11 +126,11 @@ pub struct ViewCommentDeleteParams {
 }
 
 pub async fn view_comment_delete(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Query(params): Query<ViewCommentDeleteParams>,
 ) -> impl IntoResponse {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info).into_response();
@@ -154,11 +156,11 @@ pub struct PostCommentDeleteParams {
 }
 
 pub async fn post_comment_delete(
-    Extension(logged_user_id): Extension<Option<String>>,
+    logged_user: Option<Extension<LoggedUser>>,
     Form(params): Form<PostCommentDeleteParams>,
 ) -> Redirect {
     // check the user login status
-    if logged_user_id.is_none() {
+    if logged_user.is_none() {
         let action = format!("Not logged in");
         let err_info = "Need login firstly to get proper permission.";
         return redirect_to_error_page(&action, err_info);

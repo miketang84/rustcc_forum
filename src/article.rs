@@ -53,14 +53,14 @@ pub async fn view_article(
     if let Some(post) = posts.into_iter().next() {
         // continue to query comments
         let query_params = [("post_id", &post.id)];
-        let comments: Vec<GutpComment> = make_get("/v1/comment/list_by_post_id", &query_params)
+        let comments: Vec<GutpComment> = make_get("/v1/comment/list_by_post", &query_params)
             .await
             .unwrap_or(vec![]);
 
         // TODO: query tags of this article
         // this is a N:M relationship, so it's relatively complex
         // let query_params = [("post_id", post.id)];
-        // let post_tags: Vec<GutpPostTag> = make_get("/v1/posttag/list_by_post_id", &query_params)
+        // let post_tags: Vec<GutpPostTag> = make_get("/v1/posttag/list_by_post", &query_params)
         //     .await
         //     .unwrap_or(vec![]);
 
@@ -168,11 +168,22 @@ pub async fn post_article_create(
     }
     let Extension(LoggedUser { user_id }) = logged_user.unwrap();
 
+    let inner_params = [("id", &user_id)];
+    let users: Vec<GutpUser> = make_get("/v1/user", &inner_params).await.unwrap_or(vec![]);
+    // because author isn't the care factor, if it's invalid, just git it a default value
+    if users.is_empty() {
+        let action = format!("Query user: {}", user_id);
+        let err_info = "Unknown error.";
+        return redirect_to_error_page(&action, err_info).into_response();
+    }
+    let user = users[0].to_owned();
+
     #[derive(Serialize)]
     struct InnerArticleCreateParams {
         title: String,
         content: String,
         author_id: String,
+        author_nickname: String,
         subspace_id: String,
         extlink: String,
         profession: String,
@@ -183,7 +194,8 @@ pub async fn post_article_create(
     let inner_params = InnerArticleCreateParams {
         title: params.title,
         content: params.content,
-        author_id: user_id,
+        author_id: user.id.to_owned(),
+        author_nickname: user.nickname.to_owned(),
         subspace_id: params.subspace_id.to_owned(),
         extlink: params.extlink,
         profession: crate::APPPROFESSION.to_string(),
@@ -280,7 +292,7 @@ pub async fn post_article_edit(
         is_public: true,
     };
     // post to gutp
-    let posts: Vec<GutpPost> = make_post("/v1/article/edit", &inner_params)
+    let posts: Vec<GutpPost> = make_post("/v1/post/update", &inner_params)
         .await
         .unwrap_or(vec![]);
     if let Some(post) = posts.into_iter().next() {
@@ -322,7 +334,7 @@ pub async fn view_article_delete(
     if let Some(post) = posts.into_iter().next() {
         // continue to query comments
         let inner_params = [("post_id", &post.id)];
-        let comments: Vec<GutpComment> = make_get("/v1/comment/list_by_post_id", &inner_params)
+        let comments: Vec<GutpComment> = make_get("/v1/comment/list_by_post", &inner_params)
             .await
             .unwrap_or(vec![]);
 

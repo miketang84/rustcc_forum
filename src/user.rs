@@ -93,9 +93,7 @@ pub async fn github_oauth_callback(
                 .unwrap_or(vec![]);
             if let Some(user) = users.into_iter().next() {
                 // if user exists, log it in
-                login_user_with_account(redis_conn, &account)
-                    .await
-                    .into_response()
+                login_user(redis_conn, &user.id).await.into_response()
             } else {
                 // if user doesn't exist, register it
 
@@ -122,9 +120,7 @@ pub async fn github_oauth_callback(
                     .unwrap_or(vec![]);
                 if let Some(user) = users.into_iter().next() {
                     // registerd successfully
-                    login_user_with_account(redis_conn, &account)
-                        .await
-                        .into_response()
+                    login_user(redis_conn, &user.id).await.into_response()
                 } else {
                     // redirect to the error page
                     let action = format!("Register user: {}", &account);
@@ -199,9 +195,9 @@ async fn get_github_user_info(access_token: &str) -> Result<GithubUserInfo, reqw
     Ok(user_info)
 }
 
-async fn login_user_with_account(conn: redis::aio::Connection, account: &str) -> impl IntoResponse {
+async fn login_user(conn: redis::aio::Connection, user_id: &str) -> impl IntoResponse {
     // first, set session key in server cache
-    let cookiestr = set_session(conn, account).await;
+    let cookiestr = set_session(conn, user_id).await;
 
     let cookie_key = format!("{}_sid", &crate::APPID);
     let cookie = Cookie::build(&cookie_key, &cookiestr)
@@ -218,18 +214,18 @@ async fn login_user_with_account(conn: redis::aio::Connection, account: &str) ->
     )
 }
 
-pub async fn set_session(mut conn: redis::aio::Connection, account: &str) -> String {
+pub async fn set_session(mut conn: redis::aio::Connection, user_id: &str) -> String {
     let x = rand::random::<[u8; 32]>();
     let cookie = sha256::digest(&x);
-    let cookie_key = format!("{}_session:{}", &crate::APPID, cookie);
-    let _: Result<(), redis::RedisError> = conn.set(&cookie_key, account).await;
+    let cookie_key = format!("{}_sid:{}", &crate::APPID, cookie);
+    let _: Result<(), redis::RedisError> = conn.set(&cookie_key, user_id).await;
     let _: Result<(), redis::RedisError> = conn.expire(&cookie, TTL).await;
 
     cookie
 }
 
 pub async fn clear_session(mut conn: redis::aio::Connection, session_id: &str) {
-    let session_key = format!("{}_session:{}", &crate::APPID, session_id);
+    let session_key = format!("{}_sid:{}", &crate::APPID, session_id);
     let _: Result<(), redis::RedisError> = conn.del(&session_key).await;
 }
 

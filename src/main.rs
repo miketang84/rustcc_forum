@@ -10,6 +10,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Serializer;
+use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
@@ -53,13 +54,15 @@ async fn top_middleware<B>(
 ) -> Response {
     // do something with `request`...
     let cookie_key = format!("{}_sid", &APPID);
-    if let Some(session_id) = cookie_jar.get(&cookie_key) {
+    if let Some(cookie) = cookie_jar.get(&cookie_key) {
         let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
         // check this session id with redis
-        let key = format!("{}_session:{}", &APPID, session_id);
+        let key = format!("{}_sid:{}", &APPID, cookie.value());
+        println!("in middleware session_sid: {}", key);
 
         let result: Result<String, redis::RedisError> = redis_conn.get(&key).await;
         if let Ok(user_id) = result {
+            println!("ready to insert user_id in Extension: {}", user_id);
             // insert this user_id to request extension
             req.extensions_mut().insert(LoggedUser { user_id });
         } else {
@@ -146,7 +149,7 @@ async fn main() {
 /// helper function
 // call it like:  make_get::<GutpPost>(...)
 // or: let avec: Vec<GutpPost> = make_get(...)
-pub async fn make_get<T: DeserializeOwned, U: Serialize + ?Sized>(
+pub async fn make_get<T: DeserializeOwned + Debug, U: Serialize + ?Sized>(
     path: &str,
     query_param: &U,
 ) -> anyhow::Result<Vec<T>> {
@@ -154,20 +157,29 @@ pub async fn make_get<T: DeserializeOwned, U: Serialize + ?Sized>(
     let url = format!("{}{}", host, path);
 
     let client = reqwest::Client::new();
-    let list: Vec<T> = client
+    let res = client
         .get(&url)
         .query(query_param)
         .header("User-Agent", "gutp-discux")
         .send()
-        .await?
-        .json() // convert the response to coresponding rust type
         .await?;
 
+    println!("in make get: {:?}", res);
+    let text = res.text().await?;
+    println!("in make get: {:?}", text);
+
+    let list: Vec<T> = serde_json::from_str(&text)?;
+
+    // let list: Vec<T> = res
+    //     .json() // convert the response to coresponding rust type
+    //     .await?;
+
     // println!("in make_get res: {:?}", list);
+
     Ok(list)
 }
 
-pub async fn make_post<T: DeserializeOwned, U: Serialize + ?Sized>(
+pub async fn make_post<T: DeserializeOwned + Debug, U: Serialize + ?Sized>(
     path: &str,
     form_param: &U,
 ) -> anyhow::Result<Vec<T>> {
@@ -175,16 +187,25 @@ pub async fn make_post<T: DeserializeOwned, U: Serialize + ?Sized>(
     let url = format!("{}{}", host, path);
 
     let client = reqwest::Client::new();
-    let list: Vec<T> = client
+    let res = client
         .post(&url)
         .form(form_param)
         .header("User-Agent", "gutp-discux")
         .send()
-        .await?
-        .json() // convert the response to coresponding rust type
         .await?;
 
-    // println!("in make_get res: {:?}", list);
+    println!("in make post: {:?}", res);
+    let text = res.text().await?;
+    println!("in make post: {:?}", text);
+
+    let list: Vec<T> = serde_json::from_str(&text)?;
+
+    // let list: Vec<T> = res
+    //     .json() // convert the response to coresponding rust type
+    //     .await?;
+
+    // println!("in make_post res: {:?}", list);
+
     Ok(list)
 }
 

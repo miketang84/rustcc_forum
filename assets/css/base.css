@@ -107,8 +107,6 @@ blockquote {
     display: block;
 }
 
-
-
 .signpart {
 	font-size: 14px;
 }
@@ -123,6 +121,7 @@ blockquote {
 .body-content {
 	padding: 10px;
 	font-size: 14px;
+	min-height: 450px;
 }
 
 .content-area {

@@ -34,7 +34,7 @@ pub async fn view_subspace(
         .unwrap_or(vec![]);
     if let Some(sp) = subspaces.into_iter().next() {
         let inner_params = [("subspace_id", &sp.id)];
-        let posts: Vec<GutpPost> = make_get("/v1/post/list_by_subspace_id", &inner_params)
+        let posts: Vec<GutpPost> = make_get("/v1/post/list_by_subspace", &inner_params)
             .await
             .unwrap_or(vec![]);
         HtmlTemplate(SubspaceTemplate {

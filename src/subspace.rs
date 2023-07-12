@@ -7,6 +7,7 @@ use axum::{
 use gutp_types::{GutpComment, GutpPost, GutpSubspace};
 use serde::{Deserialize, Serialize};
 
+use crate::filters;
 use crate::redirect_to_error_page;
 use crate::HtmlTemplate;
 use crate::LoggedUser;

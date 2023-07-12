@@ -21,7 +21,7 @@
 		<p class="vice-title">
 		    {{ author.nickname }} 
 
-		    {{"Posted at: "}} <span class="article_created_time">{{post.created_time }}</span>
+		    {{"Posted at: "}} <span class="article_created_time">{{post.created_time|date }}</span>
 
 		    {% if logged_user_id.is_some() && logged_user_id.clone().unwrap() == author.id %}
 		    <a class="edit" href="/article/edit?id={{post.id}}">{{"Edit"}}</a>
@@ -60,7 +60,7 @@
 			    {{"Author "}}
 			    {% endif %}
 					{{ comment.author_nickname }}
-			    <span class="created-time">{{ comment.created_time }}</span>
+			    <span class="created-time">{{ comment.created_time|date }}</span>
 			    {% if logged_user_id.is_some() && logged_user_id.clone().unwrap() == author.id %}
 			    <a class="delete" href="/comment/delete?id={{comment.id}}">{{"Delete"}}</a>
 			    {% endif %}

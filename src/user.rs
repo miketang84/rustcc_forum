@@ -226,6 +226,7 @@ pub async fn set_session(mut conn: redis::aio::Connection, user_id: &str) -> Str
 
 pub async fn clear_session(mut conn: redis::aio::Connection, session_id: &str) {
     let session_key = format!("{}_sid:{}", &crate::APPID, session_id);
+    println!("in clear_session: session_key: {session_key}");
     let _: Result<(), redis::RedisError> = conn.del(&session_key).await;
 }
 
@@ -242,9 +243,11 @@ pub async fn signout(
 
     let mut redis_conn = app_state.rclient.get_async_connection().await.unwrap();
     let cookie_key = format!("{}_sid", &crate::APPID);
-    if let Some(session_id) = cookie_jar.get(&cookie_key) {
-        clear_session(redis_conn, &session_id.to_string());
+    if let Some(cookie) = cookie_jar.get(&cookie_key) {
+        println!("in signout: cookie: {cookie}");
+        clear_session(redis_conn, &cookie.value()).await;
         (
+            // TODO: seems this action of removing can't work
             cookie_jar.remove(Cookie::named(cookie_key)),
             Redirect::to("/"),
         )

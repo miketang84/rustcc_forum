@@ -29,7 +29,7 @@
                 </span>
                 <span class="right info">
                     <span class="author">{{ post.author_nickname }}</span> 
-                    <span class="timestamp">{{ post.created_time }}</span>
+                    <span class="timestamp">{{ post.created_time|date }}</span>
                     <a class="delete" href="/article/delete?id={{post.id}}">{{"Delete"}}</a>
                     <a class="edit" href="/article/edit?id={{post.id}}">{{"Edit"}}</a>
                 </span>

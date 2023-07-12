@@ -216,7 +216,7 @@ async fn login_user(conn: redis::aio::Connection, user_id: &str) -> impl IntoRes
 
 pub async fn set_session(mut conn: redis::aio::Connection, user_id: &str) -> String {
     let x = rand::random::<[u8; 32]>();
-    let cookie = sha256::digest(&x);
+    let cookie = sha256::digest(&x).to_lowercase();
     let cookie_key = format!("{}_sid:{}", &crate::APPID, cookie);
     let _: Result<(), redis::RedisError> = conn.set(&cookie_key, user_id).await;
     let _: Result<(), redis::RedisError> = conn.expire(&cookie, TTL).await;

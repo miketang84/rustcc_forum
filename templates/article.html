@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-{{ post.title }} - {{subspace.title}}
+{{ post.title }}-Discux!
 {% endblock title %}
 
 {% block content %}
@@ -12,6 +12,9 @@
 
 <div class="body-content article_detail detail">
   <div class="article_detail_head">
+		<div class="backspace">
+		    <a href="/subspace?id={{subspace.id}}"> << {{ subspace.title }}</a>
+		</div>
 		<div class="title">
 		    <h2><a href="/article?id={{post.id}}">{{ post.title }}</a></h2>
 		</div>

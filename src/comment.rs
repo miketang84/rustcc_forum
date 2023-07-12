@@ -143,8 +143,8 @@ pub async fn view_comment_delete(
     if let Some(comment) = comments.into_iter().next() {
         HtmlTemplate(CommentDeleteTemplate { comment }).into_response()
     } else {
-        let action = format!("Query Article: {}", &params.id);
-        let err_info = "Article doesn't exist, comment couldn't be added to it!";
+        let action = format!("Query comment: {}", &params.id);
+        let err_info = "Comment doesn't exist!";
         redirect_to_error_page(&action, err_info).into_response()
     }
 }
@@ -167,7 +167,7 @@ pub async fn post_comment_delete(
     }
 
     let inner_params = [("id", &params.id)];
-    let _comments: Vec<GutpComment> = make_get("/v1/comment/delete", &inner_params)
+    let _comments: Vec<GutpComment> = make_post("/v1/comment/delete", &inner_params)
         .await
         .unwrap_or(vec![]);
 

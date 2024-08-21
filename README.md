@@ -1,6 +1,6 @@
-# Discux
+# RustCC Forum
 
-Discux is a general forum platform for users with the features of open-data and ownership.
+RustCC Forum is a general forum platform for users with the features of open-data and ownership.
 
 Technically, it is just a service entry for the GUTP backend.
 

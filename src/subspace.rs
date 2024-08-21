@@ -102,6 +102,7 @@ pub async fn post_subspace_create(
         profession: String,
         appid: String,
         is_public: bool,
+        slug: String,
     }
 
     let inner_params = InnerSubspaceCreateParams {
@@ -112,6 +113,7 @@ pub async fn post_subspace_create(
         profession: crate::APPPROFESSION.to_string(),
         appid: crate::APPID.to_string(),
         is_public: true,
+        slug: "".to_string(),
     };
 
     let subspaces: Vec<GutpSubspace> = make_post("/v1/subspace/create", &inner_params)
